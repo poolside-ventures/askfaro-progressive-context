@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://faro.dev/schema/pcx-0.1.schema.json",
+  "title": "Progressive-context manifest (pcx) v0.1",
+  "description": "A tiered, budget-aware, agent-navigable progressive-disclosure manifest. One file per budget variant; all variants of a source point at the same verbatim leaf store.",
+  "type": "object",
+  "required": ["pcx_version", "source", "variant", "root", "nodes"],
+  "additionalProperties": false,
+  "properties": {
+    "pcx_version": { "const": "0.1" },
+    "usage": {
+      "type": "string",
+      "description": "Self-description of the navigation protocol, so a cold agent that has never seen the format knows how to use the manifest. Shipped at the top of every manifest."
+    },
+    "source": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "description": "Adapter that produced this manifest.",
+          "examples": ["website", "docs", "skills", "tools", "memory", "file"]
+        },
+        "generated_at": { "type": "string" },
+        "content_hash": { "type": "string" }
+      }
+    },
+    "variant": {
+      "type": "object",
+      "description": "Which budget variant this file is. Budgets are arbitrary integers, not a fixed menu.",
+      "required": ["budget"],
+      "additionalProperties": false,
+      "properties": {
+        "budget": { "type": "integer", "minimum": 1, "description": "Target context window (tokens) this variant was generated for." },
+        "manifest_tokens": { "type": "integer", "minimum": 0, "description": "Token cost of the always-loaded baseline (root + initially-visible frontier descriptors)." },
+        "siblings": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "description": "Other budgets this source was also built at." }
+      }
+    },
+    "full_tokens": { "type": "integer", "minimum": 0, "description": "Token cost of expanding the entire tree to full leaves. Informational." },
+    "root": { "$ref": "#/$defs/node" },
+    "nodes": {
+      "type": "object",
+      "description": "All non-root nodes, keyed by id.",
+      "additionalProperties": { "$ref": "#/$defs/node" }
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["what", "when"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "tier": { "type": "integer", "minimum": 0 },
+        "title": { "type": "string" },
+        "what": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "One line: what is behind this node, concretely (names the artifact/action)."
+        },
+        "when": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "One line: what user goal / question makes this the right branch. Sibling-discriminating, in the user's terms."
+        },
+        "keywords": { "type": "array", "items": { "type": "string" } },
+        "desc_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cost of showing THIS node's descriptor in a frontier. Optional; the runtime estimates it from title/what/when if absent."
+        },
+        "tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cost to expand this node's direct full payload. Branches are 0 (expanding a branch reveals children descriptors instead)."
+        },
+        "summary_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cost of the optional cheaper 'summary' render level, if the node advertises one."
+        },
+        "subtree_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cost to expand everything under this node to full leaves. Lets the runtime plan without fetching."
+        },
+        "content_hash": {
+          "type": "string",
+          "description": "Hash of this node's content (leaf) or of its children's hashes (branch). Enables incremental rebuilds — only re-describe changed nodes."
+        },
+        "children": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Child node ids (branch). Mutually exclusive with payload."
+        },
+        "payload": { "$ref": "#/$defs/payload" }
+      },
+      "oneOf": [
+        { "required": ["children"], "not": { "required": ["payload"] } },
+        { "required": ["payload"], "not": { "required": ["children"] } }
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "description": "Pointer to a leaf's verbatim content. Never inlined.",
+      "required": ["ref"],
+      "additionalProperties": false,
+      "properties": {
+        "ref": { "type": "string", "description": "Content reference, e.g. node://<id>." },
+        "format": { "type": "string", "examples": ["md", "json", "txt"] },
+        "render": {
+          "type": "array",
+          "items": { "enum": ["full", "summary"] },
+          "description": "Available render levels. 'full' is always present and verbatim; 'summary' is an additive convenience, never a replacement."
+        }
+      }
+    }
+  }
+}

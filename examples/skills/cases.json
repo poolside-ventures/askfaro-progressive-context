@@ -1,0 +1,10 @@
+[
+  { "query": "write a new announcement post", "target": "posts.draft" },
+  { "query": "when should this finished draft go out", "target": "posts.schedule" },
+  { "query": "schedule a recurring weekly report", "target": "recurring.create" },
+  { "query": "backfill the recurring runs we missed last week", "target": "recurring.catchup" },
+  { "query": "look up what our competitors are doing", "target": "research.web" },
+  { "query": "summarize these sources into a cited report", "target": "research.synthesize" },
+  { "query": "broadcast an update to the whole channel", "target": "channels.post" },
+  { "query": "send a private message to a teammate", "target": "channels.dm" }
+]

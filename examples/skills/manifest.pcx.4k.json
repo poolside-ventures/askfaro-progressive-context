@@ -1,0 +1,135 @@
+{
+  "pcx_version": "0.1",
+  "source": { "id": "assistant-skills", "kind": "skills", "generated_at": "2026-06-10T00:00:00Z", "content_hash": "sha256:demo" },
+  "variant": { "budget": 4096, "manifest_tokens": 180, "siblings": [32768] },
+  "full_tokens": 11440,
+  "root": {
+    "id": "r",
+    "title": "Assistant skills",
+    "what": "Assistant skill library: reusable task templates and reference docs.",
+    "when": "Consult when deciding HOW to perform a multi-step task the user requested.",
+    "children": ["posts", "recurring", "research", "channels"]
+  },
+  "nodes": {
+    "posts": {
+      "tier": 1,
+      "title": "Posts & publishing",
+      "what": "Drafting, scheduling, and publishing posts.",
+      "when": "User wants to write, time, or publish post content.",
+      "tokens": 0,
+      "subtree_tokens": 3160,
+      "children": ["posts.draft", "posts.schedule"],
+      "keywords": ["post", "draft", "write", "publish", "announcement"]
+    },
+    "posts.draft": {
+      "tier": 2,
+      "title": "Drafting a post",
+      "what": "Template for composing new post body text from a prompt or outline.",
+      "when": "User wants new post content written.",
+      "tokens": 1840,
+      "subtree_tokens": 1840,
+      "keywords": ["draft", "write", "compose", "new", "announcement"],
+      "payload": { "ref": "node://posts.draft", "format": "md", "render": ["full", "summary"] }
+    },
+    "posts.schedule": {
+      "tier": 2,
+      "title": "Scheduling a post",
+      "what": "How to set the publish time for an already-written draft.",
+      "when": "User asks when an existing draft should go out.",
+      "tokens": 1320,
+      "subtree_tokens": 1320,
+      "keywords": ["schedule", "timing", "publish", "later", "existing"],
+      "payload": { "ref": "node://posts.schedule", "format": "md", "render": ["full"] }
+    },
+    "recurring": {
+      "tier": 1,
+      "title": "Recurring tasks",
+      "what": "Creating repeating tasks and handling missed occurrences.",
+      "when": "User wants something to repeat on a schedule, or to backfill missed runs.",
+      "tokens": 0,
+      "subtree_tokens": 2480,
+      "children": ["recurring.create", "recurring.catchup"],
+      "keywords": ["recurring", "repeat", "weekly", "daily", "schedule", "cron"]
+    },
+    "recurring.create": {
+      "tier": 2,
+      "title": "Creating a recurring task",
+      "what": "Define a repeating task and its cadence (daily/weekly/monthly).",
+      "when": "User wants a task to repeat on a regular schedule.",
+      "tokens": 1500,
+      "subtree_tokens": 1500,
+      "keywords": ["recurring", "repeat", "weekly", "report", "every", "create"],
+      "payload": { "ref": "node://recurring.create", "format": "md", "render": ["full"] }
+    },
+    "recurring.catchup": {
+      "tier": 2,
+      "title": "Catching up missed runs",
+      "what": "Backfill occurrences that were missed while the schedule lapsed.",
+      "when": "User wants to recover or backfill recurring runs that did not fire.",
+      "tokens": 980,
+      "subtree_tokens": 980,
+      "keywords": ["catch", "missed", "backfill", "recover", "lapsed"],
+      "payload": { "ref": "node://recurring.catchup", "format": "md", "render": ["full"] }
+    },
+    "research": {
+      "tier": 1,
+      "title": "Research",
+      "what": "Gathering information from the web and synthesizing findings.",
+      "when": "User wants to find external information or summarize what was found.",
+      "tokens": 0,
+      "subtree_tokens": 3800,
+      "children": ["research.web", "research.synthesize"],
+      "keywords": ["research", "web", "search", "summarize", "competitors"]
+    },
+    "research.web": {
+      "tier": 2,
+      "title": "Web research",
+      "what": "Run web searches and collect candidate sources for a question.",
+      "when": "User wants to find or look up external information.",
+      "tokens": 2100,
+      "subtree_tokens": 2100,
+      "keywords": ["web", "search", "find", "look up", "sources", "competitors"],
+      "payload": { "ref": "node://research.web", "format": "md", "render": ["full"] }
+    },
+    "research.synthesize": {
+      "tier": 2,
+      "title": "Synthesizing findings",
+      "what": "Combine collected sources into a cited summary or report.",
+      "when": "User wants gathered information summarized into a report.",
+      "tokens": 1700,
+      "subtree_tokens": 1700,
+      "keywords": ["summarize", "synthesize", "report", "combine", "cited"],
+      "payload": { "ref": "node://research.synthesize", "format": "md", "render": ["full"] }
+    },
+    "channels": {
+      "tier": 1,
+      "title": "Channels & messaging",
+      "what": "Posting to channels and sending direct messages.",
+      "when": "User wants to send a message to a channel or a person.",
+      "tokens": 0,
+      "subtree_tokens": 2000,
+      "children": ["channels.post", "channels.dm"],
+      "keywords": ["channel", "message", "dm", "send", "teammate"]
+    },
+    "channels.post": {
+      "tier": 2,
+      "title": "Posting to a channel",
+      "what": "Send a message into a shared channel feed.",
+      "when": "User wants to broadcast a message to a channel.",
+      "tokens": 1100,
+      "subtree_tokens": 1100,
+      "keywords": ["channel", "broadcast", "feed", "post", "shared"],
+      "payload": { "ref": "node://channels.post", "format": "md", "render": ["full"] }
+    },
+    "channels.dm": {
+      "tier": 2,
+      "title": "Direct messaging",
+      "what": "Send a private direct message to a single person.",
+      "when": "User wants to message one teammate privately.",
+      "tokens": 900,
+      "subtree_tokens": 900,
+      "keywords": ["dm", "direct", "private", "teammate", "person"],
+      "payload": { "ref": "node://channels.dm", "format": "md", "render": ["full"] }
+    }
+  }
+}
