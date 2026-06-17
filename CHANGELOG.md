@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Docs: document `NavSession`.** Added a README section for the agent-loop API
+  (`index` / `look` / `open` / `close`, the `local` / `remote` modes, and the
+  `shown_tokens` / `budget_remaining` accounting). No functional change.
+
 ## 0.0.7 — first clean public release (2026-06-11)
 
 - Genericized examples and docs for the public release (neutral fixtures; no

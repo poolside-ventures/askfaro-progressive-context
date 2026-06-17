@@ -56,6 +56,34 @@ ref = rt.expand("recurring.create")     # splice a leaf's verbatim payload; rais
 
 The runtime — not the model — is the budget authority. `effective_budget = variant.budget − reserve`, and every `expand` is checked against it. When full it auto-collapses LRU leaves (opt-in) or refuses and tells the agent to choose. **The budget is never silently exceeded.**
 
+## Driving it from an agent loop: `NavSession`
+
+`Runtime` is the low-level budget authority; `NavSession` wraps it with the three verbs an agent loop actually drives, plus mode-aware defaults. The model's *choice of verb is the confidence signal* — there is no threshold to tune:
+
+```python
+from faro_progressive_context import Manifest, NavSession
+
+s = NavSession(manifest, mode="local", reserve=1024)
+
+s.index()                        # current frontier, shortest-useful view first
+s.look(["recurring", "one_off"]) # escalate candidates to full descriptors WITHOUT opening them
+s.open("recurring")              # branch -> drill into its children;
+                                 # leaf   -> splice the verbatim content (budget-enforced)
+s.close("recurring")             # collapse a node to reclaim budget
+
+s.shown_tokens                   # everything the model has seen this session (the real "length")
+s.budget_remaining
+```
+
+If the index is enough, the model calls `open`; if it can't decide, it calls `look` first. **Modes** encode the tokens-vs-round-trips tradeoff:
+
+| mode | frontier view | small leaves | use when |
+|---|---|---|---|
+| `local` (default) | `brief` | resolved on demand (O(1) resident splice) | on-device / resident manifest — round-trips are ~free, so take many tiny steps |
+| `remote` | `full` | inlined into `index()` (≤200 tokens) | network-backed — each hop costs latency, so disclose more per step to need fewer |
+
+Pass `config=ModeConfig(...)` for a custom policy; an unknown `mode` raises with the valid options.
+
 ## Why a benchmark, not vibes
 
 The moat is descriptor quality, so quality is measured, not asserted. The eval harness gives a navigator *only* the manifest and a budget plus `(query → correct leaf)` cases, and reports **navigation-success @ budget**, **first-hop precision**, and **average hops**. The deterministic `KeywordNavigator` establishes an offline floor; swap in an `LLMNavigator` to score a real model.
