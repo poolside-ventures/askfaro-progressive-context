@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.1 - terse descriptor style (2026-06-17)
+
+- **Tighter `what`/`when` defaults.** `LLMDescriptorModel` now instructs the
+  model to write short verb phrases (≤80 chars, no sub-clauses, no trailing
+  punctuation) instead of verbose full sentences. Hard clamps in `_call` reduced
+  from 160 → 80 chars to match. Fallback strings updated to match.
 - **Docs: document `NavSession`.** Added a README section for the agent-loop API
   (`index` / `look` / `open` / `close`, the `local` / `remote` modes, and the
   `shown_tokens` / `budget_remaining` accounting). No functional change.

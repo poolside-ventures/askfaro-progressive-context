@@ -237,10 +237,11 @@ class LLMDescriptorModel(DescriptorModel):
         return parse_json_object(self.client.complete(prompt, system=self._SYS, response_format=self._JSON))
 
     _SYS = (
-        "You write navigation index entries for an agent that browses a tiered "
-        "knowledge tree under a tight token budget. Entries must be concrete and "
-        "<=120 characters. 'what' says what is behind a node; 'when' says what "
-        "user goal makes it the right choice. Reply with strict JSON only."
+        "You write navigation index entries for an agent browsing a capability tree "
+        "under a tight token budget. Be terse — every wasted word costs the agent "
+        "context. 'what': ≤80 chars, short verb phrase, core action only, no "
+        "sub-clauses, no trailing punctuation. 'when': ≤80 chars, the user goal "
+        "that makes this the right choice over its siblings. Reply with strict JSON only."
     )
 
     @staticmethod
@@ -261,7 +262,7 @@ class LLMDescriptorModel(DescriptorModel):
             'Return {"what": str, "when": str, "keywords": [str, ...]}.'
         )
         title = node.title or node.id
-        fallback = Descriptor(what=(node.hint or title)[:160], when=f"Use for {title}.", keywords=node.keywords)
+        fallback = Descriptor(what=(node.hint or title)[:80], when=f"Use for {title}.", keywords=node.keywords)
         return self._call(prompt, fallback)
 
     def describe_branch(self, node: SourceNode, children: list[Descriptor], *, feedback: str | None = None) -> Descriptor:
@@ -272,7 +273,7 @@ class LLMDescriptorModel(DescriptorModel):
             'Summarize the group. Return {"what": str, "when": str, "keywords": [str, ...]}.'
         )
         title = node.title or node.id
-        fallback = Descriptor(what=(node.hint or title)[:160], when=f"Anything about {title}.", keywords=[])
+        fallback = Descriptor(what=(node.hint or title)[:80], when=f"Anything about {title}.", keywords=[])
         return self._call(prompt, fallback)
 
     def contrast(self, parent_title: str | None, siblings: list[tuple[SourceNode, Descriptor]]) -> list[Descriptor]:
@@ -321,9 +322,9 @@ class LLMDescriptorModel(DescriptorModel):
             obj = self._complete_json(prompt)
         except (ValueError, KeyError):
             return fallback  # degrade to a hint-based descriptor, never crash the build
-        what = str(obj.get("what", "")).strip()[:160] or fallback.what
+        what = str(obj.get("what", "")).strip()[:80] or fallback.what
         return Descriptor(
             what=what,
-            when=str(obj.get("when", "")).strip()[:160] or fallback.when,
+            when=str(obj.get("when", "")).strip()[:80] or fallback.when,
             keywords=list(obj.get("keywords", [])) or fallback.keywords,
         )
