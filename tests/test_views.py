@@ -2,7 +2,7 @@
 
 import pytest
 
-from faro_progressive_context import Runtime, dict_resolver
+from askfaro_progressive_context import Runtime, dict_resolver
 
 
 def test_shorter_levels_cost_fewer_tokens(manifest):

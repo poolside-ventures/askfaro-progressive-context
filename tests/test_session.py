@@ -2,7 +2,7 @@
 
 import pytest
 
-from faro_progressive_context import ModeConfig, NavSession, dict_resolver
+from askfaro_progressive_context import ModeConfig, NavSession, dict_resolver
 
 
 def test_local_defaults_to_brief(manifest):

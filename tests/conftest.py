@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from faro_progressive_context import Manifest
+from askfaro_progressive_context import Manifest
 
 EXAMPLES = Path(__file__).parents[1] / "examples" / "skills"
 

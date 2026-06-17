@@ -1,6 +1,6 @@
 import pytest
 
-from faro_progressive_context import BudgetExceeded, Runtime
+from askfaro_progressive_context import BudgetExceeded, Runtime
 
 
 def test_initial_frontier_is_tier1(manifest):

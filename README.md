@@ -1,10 +1,10 @@
-# faro-progressive-context
+# askfaro-progressive-context
 
 **Compile any content into a tiered, budget-aware, agent-navigable progressive-disclosure manifest — for small / on-device context windows.**
 
 On-device models have tiny context windows (~4k today, ~32k near-term). Stuffing everything in — or lossily compressing it — loses information. The alternative is **progressive disclosure**: give the model a compact, accurate *index* of what exists and *when each piece is relevant*, then let it fetch detail on demand within a hard token budget.
 
-`faro-progressive-context` is the open-source compiler + format + runtime for that index. It is the **agent-navigated** half of Faro's context tooling (the model reads the index and decides what to expand); its sibling [`faro-embedded-search`](https://github.com/poolside-ventures/faro-embedded-search) is the retrieval-driven half. The two stay independent — this library has no hard dependency on it.
+`askfaro-progressive-context` is the open-source compiler + format + runtime for that index. It is the **agent-navigated** half of Faro's context tooling (the model reads the index and decides what to expand); its sibling [`askfaro-embedded-search`](https://github.com/poolside-ventures/askfaro-embedded-search) is the retrieval-driven half. The two stay independent — this library has no hard dependency on it.
 
 > Status: **Phase 1 (pre-alpha).** The format, expansion runtime, eval harness, **and the compiler (`pcx build`)** are here and tested — adapters for `tools`/`docs`/`skills`/`memory`, the descriptor engine (bottom-up + contrastive + self-grade), cost annotation, and per-budget emit. Still to come: per-budget frontier shaping, `website`/`file` adapters with clustering (Phase 3), and the hosted Faro registry (Phase 5).
 
@@ -23,11 +23,11 @@ Variants are **pre-generated per budget** (`pcx.4k.json`, `pcx.32k.json`, …); 
 | Module | What it does |
 |---|---|
 | `schema/pcx-0.1.schema.json` | the format, as JSON Schema |
-| `faro_progressive_context.types` | `Manifest` / `Node` / `Payload` dataclasses |
-| `faro_progressive_context.validate` | structural (zero-dep) + JSON Schema validation |
-| `faro_progressive_context.runtime` | the expansion protocol: `peek` / `expand` / `collapse` / `search`, with **hard budget enforcement** and a runtime `reserve` |
-| `faro_progressive_context.navigator` | `KeywordNavigator` (deterministic baseline, no model) and `LLMNavigator` (bring your own `complete()`) |
-| `faro_progressive_context.eval` | the **`navigation-success @ budget`** harness — the headline quality metric |
+| `askfaro_progressive_context.types` | `Manifest` / `Node` / `Payload` dataclasses |
+| `askfaro_progressive_context.validate` | structural (zero-dep) + JSON Schema validation |
+| `askfaro_progressive_context.runtime` | the expansion protocol: `peek` / `expand` / `collapse` / `search`, with **hard budget enforcement** and a runtime `reserve` |
+| `askfaro_progressive_context.navigator` | `KeywordNavigator` (deterministic baseline, no model) and `LLMNavigator` (bring your own `complete()`) |
+| `askfaro_progressive_context.eval` | the **`navigation-success @ budget`** harness — the headline quality metric |
 
 ## Quick start
 
@@ -42,7 +42,7 @@ pcx eval examples/skills/manifest.pcx.4k.json examples/skills/cases.json -v
 ```
 
 ```python
-from faro_progressive_context import Manifest, Runtime
+from askfaro_progressive_context import Manifest, Runtime
 
 m = Manifest.from_dict(json.load(open("examples/skills/manifest.pcx.4k.json")))
 rt = Runtime(m, reserve=1024)          # leave 1k for your own content
@@ -61,7 +61,7 @@ The runtime — not the model — is the budget authority. `effective_budget = v
 `Runtime` is the low-level budget authority; `NavSession` wraps it with the three verbs an agent loop actually drives, plus mode-aware defaults. The model's *choice of verb is the confidence signal* — there is no threshold to tune:
 
 ```python
-from faro_progressive_context import Manifest, NavSession
+from askfaro_progressive_context import Manifest, NavSession
 
 s = NavSession(manifest, mode="local", reserve=1024)
 

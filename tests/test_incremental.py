@@ -2,8 +2,8 @@
 
 from pathlib import Path
 
-from faro_progressive_context.build import FakeDescriptorModel, compile_source
-from faro_progressive_context.build.adapters import get_adapter
+from askfaro_progressive_context.build import FakeDescriptorModel, compile_source
+from askfaro_progressive_context.build.adapters import get_adapter
 
 FIX = Path(__file__).parent / "fixtures"
 

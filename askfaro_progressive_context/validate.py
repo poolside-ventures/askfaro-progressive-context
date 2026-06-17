@@ -94,7 +94,7 @@ def schema_errors(manifest: dict[str, Any]) -> list[str]:
         import jsonschema  # type: ignore
     except ImportError as exc:  # pragma: no cover - exercised only without extra
         raise RuntimeError(
-            "JSON Schema validation requires the 'schema' extra: pip install 'faro-progressive-context[schema]'"
+            "JSON Schema validation requires the 'schema' extra: pip install 'askfaro-progressive-context[schema]'"
         ) from exc
 
     schema = json.loads(schema_path().read_text())

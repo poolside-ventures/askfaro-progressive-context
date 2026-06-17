@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from faro_progressive_context import Manifest, Runtime, structural_errors
-from faro_progressive_context.build import (
+from askfaro_progressive_context import Manifest, Runtime, structural_errors
+from askfaro_progressive_context.build import (
     Descriptor,
     FakeDescriptorModel,
     compile_source,
 )
-from faro_progressive_context.build.adapters import get_adapter
-from faro_progressive_context.build.descriptors import generate_descriptors
+from askfaro_progressive_context.build.adapters import get_adapter
+from askfaro_progressive_context.build.descriptors import generate_descriptors
 
 FIX = Path(__file__).parent / "fixtures"
 

@@ -1,6 +1,6 @@
 import copy
 
-from faro_progressive_context import structural_errors
+from askfaro_progressive_context import structural_errors
 
 
 def test_example_is_valid(manifest_dict):

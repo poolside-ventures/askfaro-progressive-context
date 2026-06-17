@@ -1,4 +1,4 @@
-from faro_progressive_context import KeywordNavigator, NavCase, run_case, run_eval
+from askfaro_progressive_context import KeywordNavigator, NavCase, run_case, run_eval
 
 
 def _cases(cases):

@@ -45,7 +45,7 @@ class OpenAICompatibleClient:
         except ImportError as exc:
             raise RuntimeError(
                 "OpenAICompatibleClient needs httpx. Install the 'llm' extra: "
-                "pip install 'faro-progressive-context[llm]'"
+                "pip install 'askfaro-progressive-context[llm]'"
             ) from exc
         if not self.api_key:
             raise RuntimeError(

@@ -2,7 +2,7 @@ name: Publish to PyPI
 
 # Publishes to PyPI via OIDC trusted publishing (no API token stored).
 # Configure the trusted publisher on PyPI once (Project → Settings → Publishing):
-#   owner: poolside-ventures   repo: faro-progressive-context
+#   owner: poolside-ventures   repo: askfaro-progressive-context
 #   workflow: publish.yml      environment: pypi
 # Then publishing happens automatically when a GitHub Release is published.
 

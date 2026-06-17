@@ -6,6 +6,15 @@
   (`index` / `look` / `open` / `close`, the `local` / `remote` modes, and the
   `shown_tokens` / `budget_remaining` accounting). No functional change.
 
+## 0.1.0 - renamed to askfaro-progressive-context (2026-06-17)
+
+- **Package renamed.** Distribution `faro-progressive-context` is now
+  `askfaro-progressive-context`, and the import name `faro_progressive_context`
+  is now `askfaro_progressive_context`, to match the AskFaro brand. Update
+  imports and `pip install askfaro-progressive-context`. The old name ships one
+  final `0.0.8` release that re-exports this package and warns on import. No
+  functional change.
+
 ## 0.0.7 — first clean public release (2026-06-11)
 
 - Genericized examples and docs for the public release (neutral fixtures; no

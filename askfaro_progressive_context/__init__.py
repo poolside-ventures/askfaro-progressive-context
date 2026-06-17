@@ -1,4 +1,4 @@
-"""faro-progressive-context: compile any content into a tiered, budget-aware,
+"""askfaro-progressive-context: compile any content into a tiered, budget-aware,
 agent-navigable progressive-disclosure manifest, plus an expansion protocol."""
 
 from .eval import CaseResult, EvalReport, NavCase, run_case, run_eval
