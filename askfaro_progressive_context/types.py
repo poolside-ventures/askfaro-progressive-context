@@ -147,6 +147,19 @@ class Manifest:
     full_tokens: int | None = None
     pcx_version: str = PCX_VERSION
 
+    @property
+    def identity(self) -> str | None:
+        """A stable token identifying this manifest's *content*.
+
+        Two manifests with the same identity are interchangeable; a changed
+        identity means the content moved and a cache must refetch. Derived from
+        the build's bottom-up `source.content_hash` (see `build.emit`). Returns
+        ``None`` when the source omits a hash — callers that need an identity in
+        that case should fall back to `loader.identity_of`, which hashes the body.
+        """
+        h = self.source.get("content_hash")
+        return str(h) if h is not None else None
+
     def get(self, node_id: str) -> Node:
         if node_id == self.root.id:
             return self.root

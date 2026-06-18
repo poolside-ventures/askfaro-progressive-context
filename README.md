@@ -27,6 +27,7 @@ Variants are **pre-generated per budget** (`pcx.4k.json`, `pcx.32k.json`, …); 
 | `askfaro_progressive_context.validate` | structural (zero-dep) + JSON Schema validation |
 | `askfaro_progressive_context.runtime` | the expansion protocol: `peek` / `expand` / `collapse` / `search`, with **hard budget enforcement** and a runtime `reserve` |
 | `askfaro_progressive_context.navigator` | `KeywordNavigator` (deterministic baseline, no model) and `LLMNavigator` (bring your own `complete()`) |
+| `askfaro_progressive_context.loader` | `ManifestLoader` + `MemoryStore` / `FileStore` — transport-agnostic, identity-revalidated manifest caching |
 | `askfaro_progressive_context.eval` | the **`navigation-success @ budget`** harness — the headline quality metric |
 
 ## Quick start
@@ -83,6 +84,52 @@ If the index is enough, the model calls `open`; if it can't decide, it calls `lo
 | `remote` | `full` | inlined into `index()` (≤200 tokens) | network-backed — each hop costs latency, so disclose more per step to need fewer |
 
 Pass `config=ModeConfig(...)` for a custom policy; an unknown `mode` raises with the valid options.
+
+## Caching the manifest: `ManifestLoader`
+
+A manifest is small, identical for every reader, and changes only when its source content changes — an ideal cache target. But it is also a *routing index*, so a stale copy can point an agent at content that has moved or vanished. A plain time-to-live cache is therefore the wrong tool: the safe pattern is to cache on the manifest's **identity** and *revalidate* against it, never to expire blindly on a clock.
+
+`ManifestLoader` gives every consumer that pattern by default, while staying **transport-agnostic** — it knows nothing about HTTP, files, S3, or ETags. You supply a `Fetcher` that reaches your origin; the loader owns the identity bookkeeping, the store, and the guarantee that a changed identity always wins.
+
+```python
+from askfaro_progressive_context import (
+    FetchOutcome, FileStore, ManifestKey, ManifestLoader, identity_of,
+)
+import httpx
+
+def fetch(key: ManifestKey, known_identity: str | None) -> FetchOutcome:
+    # Your transport decides "changed?" however it likes. Over HTTP, let the
+    # origin do it with a conditional request:
+    headers = {"If-None-Match": known_identity} if known_identity else {}
+    r = httpx.get(f"https://api.example.com/pcx/manifest?budget={key.budget}", headers=headers)
+    if r.status_code == 304:
+        return FetchOutcome.unchanged()                       # reuse the cache, no transfer
+    body = r.json()
+    return FetchOutcome.fresh(r.headers.get("ETag") or identity_of(body), body)
+
+loader = ManifestLoader(fetch=fetch, store=FileStore("~/.cache/pcx"))
+manifest = loader.load(ManifestKey(source_id="my-catalog", budget="4k"))   # -> Manifest
+```
+
+Your `fetch(key, known_identity)` is handed the identity already in cache (or `None`) and returns one of two outcomes:
+
+- **`FetchOutcome.unchanged()`** — nothing changed since `known_identity` (e.g. a 304). The loader reuses the cached body: zero transfer, zero parsing.
+- **`FetchOutcome.fresh(identity, body)`** — fresh content. The loader stores it under the key and returns it.
+
+The safety property is **structural**: a `Fetcher` too dumb to do conditional requests and *always* returning full content still gets correct invalidation, because the store is identity-stamped and re-storing the same identity is a no-op. There is no TTL knob that can serve a stale routing index past an identity change.
+
+| piece | role |
+|---|---|
+| `ManifestKey(source_id, budget)` | what you want — budget is part of the key (identity is shared across budgets) |
+| `identity` (a `str`) | opaque content token: a content hash, an ETag, `"v{n}"` — compared for equality only, never parsed |
+| `Fetcher` | **your** transport: `(key, known_identity) -> FetchOutcome`. The one bit you write |
+| `MemoryStore` (default) | process-local; all a long-running process needs |
+| `FileStore(dir)` | on-disk; earns its keep for short-lived processes (CLIs, serverless, edge cold starts) that would otherwise re-download every run |
+| `identity_of(dict)` | derive an identity from a manifest body (prefers `source.content_hash`, else hashes the body) — for transports with no native validator |
+
+Identity comes from the build: `emit` stamps each manifest with a bottom-up `source.content_hash`, surfaced as `manifest.identity`. `load()` means *"give me the current manifest, revalidating."* If you want to skip even the revalidation round-trip, don't call `load()` in a hot loop — hold the returned `Manifest` and reload on your own cadence.
+
+> **For origins:** to let clients revalidate cheaply, serve the manifest with an `ETag` (the `source.content_hash` is a ready-made one) and honor `If-None-Match` with a `304`. Without that, clients still cache correctly via `identity_of`, they just re-transfer the body on each `load()`.
 
 ## Why a benchmark, not vibes
 

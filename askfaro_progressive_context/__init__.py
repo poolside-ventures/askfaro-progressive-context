@@ -3,6 +3,19 @@ agent-navigable progressive-disclosure manifest, plus an expansion protocol."""
 
 from .eval import CaseResult, EvalReport, NavCase, run_case, run_eval
 from .llm import LLMClient, OpenAICompatibleClient
+from .loader import (
+    FetchOutcome,
+    Fetcher,
+    FileStore,
+    Identity,
+    LoaderError,
+    ManifestKey,
+    ManifestLoader,
+    ManifestStore,
+    MemoryStore,
+    StoredManifest,
+    identity_of,
+)
 from .navigator import KeywordNavigator, LLMNavigator, Navigator
 from .runtime import (
     VIEW_LEVELS,
@@ -19,20 +32,29 @@ from .tokenizer import make_tokenizer
 from .types import PROTOCOL_USAGE, Manifest, Node, Payload, Variant, estimate_tokens
 from .validate import schema_errors, structural_errors, validate
 
-__version__ = "0.0.7"
+__version__ = "0.3.0"
 
 __all__ = [
     "BudgetExceeded",
     "CaseResult",
     "EvalReport",
+    "FetchOutcome",
+    "Fetcher",
+    "FileStore",
     "FrontierEntry",
+    "Identity",
     "KeywordNavigator",
     "LLMClient",
     "LLMNavigator",
     "LOCAL",
     "REMOTE",
     "LeafResolver",
+    "LoaderError",
     "Manifest",
+    "ManifestKey",
+    "ManifestLoader",
+    "ManifestStore",
+    "MemoryStore",
     "ModeConfig",
     "NavCase",
     "NavSession",
@@ -43,10 +65,12 @@ __all__ = [
     "Payload",
     "Runtime",
     "SearchBackend",
+    "StoredManifest",
     "VIEW_LEVELS",
     "Variant",
     "dict_resolver",
     "estimate_tokens",
+    "identity_of",
     "make_tokenizer",
     "render_descriptor",
     "run_case",

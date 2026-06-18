@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 0.3.0 - manifest caching (`ManifestLoader`) (2026-06-18)
+
+- **New: a transport-agnostic, revalidate-don't-expire manifest cache.** A
+  manifest is small, identical for every reader, and changes only when its source
+  changes — ideal to cache — but it is a *routing index*, so a time-to-live cache
+  is unsafe (a stale copy points an agent at content that moved). `ManifestLoader`
+  caches on the manifest's **identity** and revalidates against it instead.
+  - `ManifestLoader(fetch, store=...)` with `load()` / `load_dict()`.
+  - You supply a `Fetcher` `(ManifestKey, known_identity) -> FetchOutcome`; the
+    library knows nothing about HTTP/files/ETags. `FetchOutcome.unchanged()` reuses
+    the cache (e.g. a 304); `FetchOutcome.fresh(identity, body)` replaces it.
+  - Stores: `MemoryStore` (default) and `FileStore(dir)` for short-lived processes.
+  - `identity_of(dict)` derives an identity from a body (prefers
+    `source.content_hash`, else hashes the body); `Manifest.identity` surfaces it.
+  - Safety is structural: even a fetcher that always returns full content
+    invalidates correctly, because the store is identity-stamped. No TTL can serve
+    a stale routing index past a content change.
+  - See the new README section "Caching the manifest: `ManifestLoader`".
+- **Fix: `__version__` was stale** (`0.0.7`), now tracks the package version.
+
 ## 0.2.0 - arbitrary navigation budget + preserved node metadata (2026-06-18)
 
 - **Arbitrary budget.** `Runtime(manifest, budget=N)` and
