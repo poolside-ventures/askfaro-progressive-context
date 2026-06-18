@@ -2,7 +2,16 @@
 
 ## Unreleased
 
-## 0.1.1 - terse descriptor style (2026-06-17)
+## 0.2.0 - arbitrary navigation budget + preserved node metadata (2026-06-18)
+
+- **Arbitrary budget.** `Runtime(manifest, budget=N)` and
+  `NavSession(manifest, budget=N)` size navigation to any context window,
+  overriding the manifest variant's precomputed budget (previously only
+  reducible via `reserve`). Composes with `reserve` (host headroom on top).
+- **Preserved node metadata.** `Node.from_dict` keeps any non-schema fields the
+  manifest carries (e.g. a consumer's own id) in `Node.meta`, surfaced on
+  `FrontierEntry.meta`. pcx never interprets these — they round-trip so a
+  consumer can render its domain ids while pcx stays generic.
 
 - **Tighter `what`/`when` defaults.** `LLMDescriptorModel` now instructs the
   model to write short verb phrases (≤80 chars, no sub-clauses, no trailing

@@ -14,7 +14,7 @@ it; the budget is never silently exceeded.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Protocol
 
 from .types import Manifest, Node, estimate_tokens
@@ -80,6 +80,7 @@ class FrontierEntry:
     is_leaf: bool
     expand_cost: int  # what expand() would charge right now
     expanded: bool
+    meta: dict = field(default_factory=dict)  # domain attrs preserved from the node
 
 
 class Runtime:
@@ -87,6 +88,7 @@ class Runtime:
         self,
         manifest: Manifest,
         *,
+        budget: int | None = None,
         reserve: int = 0,
         auto_evict: bool = False,
         search_backend: SearchBackend | None = None,
@@ -97,10 +99,15 @@ class Runtime:
             raise ValueError(f"view_level must be one of {VIEW_LEVELS}, got {view_level!r}")
         self.m = manifest
         self.reserve = reserve
-        self.effective_budget = manifest.variant.budget - reserve
+        # `budget` overrides the variant's budget for a non-standard window (e.g. an
+        # on-device model whose context isn't one of the precomputed tiers). Falls
+        # back to the variant's budget. `reserve` is host headroom on top of either.
+        base_budget = manifest.variant.budget if budget is None else budget
+        self.budget = base_budget
+        self.effective_budget = base_budget - reserve
         if self.effective_budget <= 0:
             raise ValueError(
-                f"reserve ({reserve}) >= variant budget ({manifest.variant.budget}); no room to navigate"
+                f"reserve ({reserve}) >= budget ({base_budget}); no room to navigate"
             )
         self.auto_evict = auto_evict
         self.search_backend = search_backend
@@ -199,6 +206,7 @@ class Runtime:
                     is_leaf=node.is_leaf,
                     expand_cost=self._expand_cost(node),
                     expanded=(nid in self._revealed or nid in self._spliced),
+                    meta=node.meta,
                 )
             )
         return out
@@ -250,6 +258,7 @@ class Runtime:
             is_leaf=node.is_leaf,
             expand_cost=self._expand_cost(node),
             expanded=(node_id in self._revealed or node_id in self._spliced),
+            meta=node.meta,
         )
 
     def collapse(self, node_id: str) -> int:

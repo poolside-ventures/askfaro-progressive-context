@@ -72,6 +72,10 @@ class Node:
     subtree_tokens: int | None = None
     children: list[str] | None = None
     payload: Payload | None = None
+    # Domain-specific node attributes the manifest carries that are not part of
+    # the pcx schema (e.g. a consumer's own id). Preserved verbatim so navigation
+    # can surface them; pcx itself never interprets them.
+    meta: dict[str, Any] = field(default_factory=dict)
 
     @property
     def is_branch(self) -> bool:
@@ -92,6 +96,13 @@ class Node:
             return self.summary_tokens
         return self.tokens
 
+    _SCHEMA_KEYS = frozenset(
+        {
+            "id", "what", "when", "tier", "title", "keywords", "desc_tokens",
+            "tokens", "summary_tokens", "subtree_tokens", "children", "payload",
+        }
+    )
+
     @classmethod
     def from_dict(cls, node_id: str, d: dict[str, Any]) -> "Node":
         payload = d.get("payload")
@@ -108,6 +119,7 @@ class Node:
             subtree_tokens=d.get("subtree_tokens"),
             children=list(d["children"]) if "children" in d else None,
             payload=Payload.from_dict(payload) if payload else None,
+            meta={k: v for k, v in d.items() if k not in cls._SCHEMA_KEYS},
         )
 
 

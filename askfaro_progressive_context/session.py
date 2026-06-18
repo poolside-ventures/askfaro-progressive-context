@@ -48,6 +48,7 @@ class NavSession:
         manifest: Manifest,
         *,
         mode: str = "local",
+        budget: int | None = None,
         reserve: int = 0,
         resolver: LeafResolver | None = None,
         config: ModeConfig | None = None,
@@ -58,7 +59,11 @@ class NavSession:
             config = _MODES[mode]
         self.mode = mode
         self.cfg = config
-        self.rt = Runtime(manifest, reserve=reserve, resolver=resolver, view_level=config.view_level)
+        # `budget` sizes the session to a non-standard window (overrides the
+        # manifest variant's budget); `reserve` is host headroom on top.
+        self.rt = Runtime(
+            manifest, budget=budget, reserve=reserve, resolver=resolver, view_level=config.view_level
+        )
 
     # --- verbs -------------------------------------------------------------
 

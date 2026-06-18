@@ -1,6 +1,6 @@
 [project]
 name = "askfaro-progressive-context"
-version = "0.1.1"
+version = "0.2.0"
 description = "Compile any content into a tiered, budget-aware, agent-navigable progressive-disclosure manifest, plus an on-demand expansion protocol — for small/on-device context windows"
 readme = "README.md"
 requires-python = ">=3.11"
