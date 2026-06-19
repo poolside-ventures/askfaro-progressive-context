@@ -129,6 +129,22 @@ The safety property is **structural**: a `Fetcher` too dumb to do conditional re
 
 Identity comes from the build: `emit` stamps each manifest with a bottom-up `source.content_hash`, surfaced as `manifest.identity`. `load()` means *"give me the current manifest, revalidating."* If you want to skip even the revalidation round-trip, don't call `load()` in a hot loop — hold the returned `Manifest` and reload on your own cadence.
 
+For an async transport (e.g. an `httpx.AsyncClient`), use **`AsyncManifestLoader`** — same contract, but `fetch` is a coroutine and `load()` is awaited. The store stays synchronous (its get/put are fast local operations):
+
+```python
+from askfaro_progressive_context import AsyncManifestLoader, FetchOutcome, FileStore, ManifestKey
+
+async def fetch(key, known_identity):
+    r = await async_http.get(f"/pcx/manifest?budget={key.budget}",
+                             headers={"If-None-Match": known_identity} if known_identity else {})
+    if r.status_code == 304:
+        return FetchOutcome.unchanged()
+    return FetchOutcome.fresh(r.headers.get("ETag") or identity_of(r.json()), r.json())
+
+loader = AsyncManifestLoader(fetch=fetch, store=FileStore("~/.cache/pcx"))
+manifest = await loader.load(ManifestKey(source_id="my-catalog", budget="4k"))
+```
+
 > **For origins:** to let clients revalidate cheaply, serve the manifest with an `ETag` (the `source.content_hash` is a ready-made one) and honor `If-None-Match` with a `304`. Without that, clients still cache correctly via `identity_of`, they just re-transfer the body on each `load()`.
 
 ## Why a benchmark, not vibes

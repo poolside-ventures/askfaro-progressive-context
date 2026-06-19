@@ -44,7 +44,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Protocol
+from typing import Any, Awaitable, Callable, Protocol
 
 from .types import Manifest
 
@@ -99,6 +99,10 @@ class FetchOutcome:
 # A transport. Given the key and the identity already cached (or None if nothing
 # is cached), return whether it changed and, if so, the fresh body + its identity.
 Fetcher = Callable[[ManifestKey, Identity | None], FetchOutcome]
+
+# The async equivalent, for callers whose transport is a coroutine (e.g. an
+# httpx.AsyncClient). Used by AsyncManifestLoader.
+AsyncFetcher = Callable[[ManifestKey, Identity | None], Awaitable[FetchOutcome]]
 
 
 def identity_of(manifest: dict[str, Any]) -> Identity:
@@ -179,6 +183,26 @@ class FileStore:
         tmp.replace(path)
 
 
+def _resolve_outcome(
+    store: ManifestStore, key: ManifestKey, cached: StoredManifest | None, outcome: FetchOutcome
+) -> dict[str, Any]:
+    """Apply a fetch outcome against the cache: reuse on not_modified, else store
+    and return the fresh body. Shared by the sync and async loaders."""
+    if outcome.not_modified:
+        if cached is None:
+            raise LoaderError(
+                f"fetcher reported not_modified for {key!r} but nothing is cached; "
+                "a not_modified outcome is only valid when a known identity was supplied"
+            )
+        return cached.manifest
+
+    if outcome.identity is None or outcome.manifest is None:
+        raise LoaderError(f"fetcher returned fresh content for {key!r} without an identity and body")
+
+    store.put(key, outcome.identity, outcome.manifest)
+    return outcome.manifest
+
+
 class ManifestLoader:
     """Ties a `Fetcher` to a `ManifestStore` with identity revalidation.
 
@@ -195,20 +219,27 @@ class ManifestLoader:
         cached = self.store.get(key)
         known = cached.identity if cached is not None else None
         outcome = self.fetch(key, known)
-
-        if outcome.not_modified:
-            if cached is None:
-                raise LoaderError(
-                    f"fetcher reported not_modified for {key!r} but nothing is cached; "
-                    "a not_modified outcome is only valid when a known identity was supplied"
-                )
-            return cached.manifest
-
-        if outcome.identity is None or outcome.manifest is None:
-            raise LoaderError(f"fetcher returned fresh content for {key!r} without an identity and body")
-
-        self.store.put(key, outcome.identity, outcome.manifest)
-        return outcome.manifest
+        return _resolve_outcome(self.store, key, cached, outcome)
 
     def load(self, key: ManifestKey) -> Manifest:
         return Manifest.from_dict(self.load_dict(key))
+
+
+class AsyncManifestLoader:
+    """`ManifestLoader` for an async transport — same identity-revalidation
+    contract, but `fetch` is a coroutine (e.g. over an httpx.AsyncClient). The
+    store stays synchronous: its get/put are fast local file or dict operations.
+    """
+
+    def __init__(self, fetch: AsyncFetcher, store: ManifestStore | None = None) -> None:
+        self.fetch = fetch
+        self.store = store if store is not None else MemoryStore()
+
+    async def load_dict(self, key: ManifestKey) -> dict[str, Any]:
+        cached = self.store.get(key)
+        known = cached.identity if cached is not None else None
+        outcome = await self.fetch(key, known)
+        return _resolve_outcome(self.store, key, cached, outcome)
+
+    async def load(self, key: ManifestKey) -> Manifest:
+        return Manifest.from_dict(await self.load_dict(key))

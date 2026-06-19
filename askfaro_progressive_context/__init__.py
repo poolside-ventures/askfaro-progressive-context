@@ -4,6 +4,8 @@ agent-navigable progressive-disclosure manifest, plus an expansion protocol."""
 from .eval import CaseResult, EvalReport, NavCase, run_case, run_eval
 from .llm import LLMClient, OpenAICompatibleClient
 from .loader import (
+    AsyncFetcher,
+    AsyncManifestLoader,
     FetchOutcome,
     Fetcher,
     FileStore,
@@ -35,6 +37,8 @@ from .validate import schema_errors, structural_errors, validate
 __version__ = "0.3.0"
 
 __all__ = [
+    "AsyncFetcher",
+    "AsyncManifestLoader",
     "BudgetExceeded",
     "CaseResult",
     "EvalReport",

@@ -6,7 +6,10 @@ import json
 
 import pytest
 
+import asyncio
+
 from askfaro_progressive_context import (
+    AsyncManifestLoader,
     FetchOutcome,
     FileStore,
     LoaderError,
@@ -187,3 +190,45 @@ def test_file_store_corrupt_file_is_a_miss(tmp_path, manifest_dict: dict):
 
 def test_file_store_missing_dir_is_a_miss(tmp_path):
     assert FileStore(tmp_path / "does-not-exist").get(KEY) is None
+
+
+# --- AsyncManifestLoader ----------------------------------------------------
+
+
+def test_async_loader_revalidates_with_not_modified(manifest_dict: dict):
+    seen: list = []
+
+    async def fetch(key, known):
+        seen.append(known)
+        if known == "sha256:demo":
+            return FetchOutcome.unchanged()
+        return FetchOutcome.fresh("sha256:demo", manifest_dict)
+
+    loader = AsyncManifestLoader(fetch=fetch, store=MemoryStore())
+
+    async def run():
+        first = await loader.load(KEY)
+        second = await loader.load(KEY)
+        return first, second
+
+    first, second = asyncio.run(run())
+    assert isinstance(first, Manifest) and isinstance(second, Manifest)
+    assert seen == [None, "sha256:demo"]
+
+
+def test_async_loader_shares_store_semantics(tmp_path, manifest_dict: dict):
+    async def fetch(key, known):
+        return FetchOutcome.fresh("sha256:demo", manifest_dict)
+
+    store = FileStore(tmp_path)
+    asyncio.run(AsyncManifestLoader(fetch=fetch, store=store).load(KEY))
+    assert store.get(KEY).identity == "sha256:demo"
+
+
+def test_async_loader_not_modified_without_cache_errors():
+    async def fetch(key, known):
+        return FetchOutcome.unchanged()
+
+    loader = AsyncManifestLoader(fetch=fetch, store=MemoryStore())
+    with pytest.raises(LoaderError):
+        asyncio.run(loader.load(KEY))

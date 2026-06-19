@@ -13,6 +13,8 @@
   - You supply a `Fetcher` `(ManifestKey, known_identity) -> FetchOutcome`; the
     library knows nothing about HTTP/files/ETags. `FetchOutcome.unchanged()` reuses
     the cache (e.g. a 304); `FetchOutcome.fresh(identity, body)` replaces it.
+  - `AsyncManifestLoader` for async transports (coroutine `fetch`, awaited
+    `load()`); same identity-revalidation contract, synchronous store.
   - Stores: `MemoryStore` (default) and `FileStore(dir)` for short-lived processes.
   - `identity_of(dict)` derives an identity from a body (prefers
     `source.content_hash`, else hashes the body); `Manifest.identity` surfaces it.
