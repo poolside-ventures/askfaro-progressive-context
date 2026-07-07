@@ -16,6 +16,14 @@ from .descriptors import (
     cache_from_manifest,
     generate_descriptors,
 )
+from .fidelity import (
+    FidelityModel,
+    FidelityReport,
+    FidelityScore,
+    LexicalFidelityModel,
+    LLMFidelityModel,
+    score_fidelity,
+)
 from .ir import SourceNode, SourceTree
 
 __all__ = [
@@ -23,11 +31,17 @@ __all__ = [
     "Descriptor",
     "DescriptorModel",
     "FakeDescriptorModel",
+    "FidelityModel",
+    "FidelityReport",
+    "FidelityScore",
     "Grade",
     "LLMDescriptorModel",
+    "LexicalFidelityModel",
+    "LLMFidelityModel",
     "SourceNode",
     "SourceTree",
     "cache_from_manifest",
     "compile_source",
     "generate_descriptors",
+    "score_fidelity",
 ]

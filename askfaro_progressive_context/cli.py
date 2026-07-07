@@ -69,7 +69,13 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    from .build import FakeDescriptorModel, LLMDescriptorModel, compile_source
+    from .build import (
+        FakeDescriptorModel,
+        LexicalFidelityModel,
+        LLMDescriptorModel,
+        LLMFidelityModel,
+        compile_source,
+    )
     from .build.adapters import get_adapter
     from .llm import OpenAICompatibleClient
     from .tokenizer import make_tokenizer
@@ -89,6 +95,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         print(str(exc).strip('"'), file=sys.stderr)
         return 2
 
+    client = None
     if args.fake:
         model = FakeDescriptorModel()
     else:
@@ -103,6 +110,16 @@ def cmd_build(args: argparse.Namespace) -> int:
         client = OpenAICompatibleClient(args.endpoint, api_key, args.model)
         model = LLMDescriptorModel(client)
 
+    fidelity_model = None
+    if args.fidelity == "llm":
+        if client is None:
+            print("--fidelity llm needs a real model (--endpoint/--model); use --fidelity lexical for offline",
+                  file=sys.stderr)
+            return 2
+        fidelity_model = LLMFidelityModel(client)
+    elif args.fidelity == "lexical":
+        fidelity_model = LexicalFidelityModel()
+
     result = compile_source(
         tree,
         model,
@@ -112,6 +129,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         collision_threshold=args.collision_threshold,
         max_contrast_rounds=args.max_contrast_rounds,
         max_repairs=args.max_repairs,
+        fidelity_model=fidelity_model,
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
@@ -135,12 +153,20 @@ def cmd_build(args: argparse.Namespace) -> int:
     colliding = s.get("collisions", {}).get("colliding_groups", 0)
     print(f"  descriptor distinctiveness: worst sibling similarity {max_sim:.3f}"
           f" ({colliding} group(s) ≥ {args.collision_threshold})")
+    fidelity = s.get("fidelity")
+    if fidelity:
+        print(f"  descriptor fidelity: mean {fidelity['mean_score']:.2f}/5"
+              f" ({len(fidelity['flagged'])} node(s) flagged < 3)")
     for w in written:
         print(f"  wrote {w}")
 
     if args.max_collision is not None and max_sim > args.max_collision:
         print(f"FAIL: worst sibling similarity {max_sim:.3f} exceeds --max-collision "
               f"{args.max_collision:.3f}. Colliding descriptors are not discriminating.", file=sys.stderr)
+        return 3
+    if args.min_fidelity is not None and fidelity and fidelity["mean_score"] < args.min_fidelity:
+        print(f"FAIL: mean descriptor fidelity {fidelity['mean_score']:.2f} is below --min-fidelity "
+              f"{args.min_fidelity:.2f}. Descriptors do not predict their content.", file=sys.stderr)
         return 3
     return 0
 
@@ -181,6 +207,10 @@ def main(argv: list[str] | None = None) -> int:
                          help="max contrastive rewrite rounds per sibling group")
     p_build.add_argument("--max-collision", dest="max_collision", type=float, default=None,
                          help="CI gate: exit non-zero if the worst sibling similarity exceeds this (0-1)")
+    p_build.add_argument("--fidelity", nargs="?", const="lexical", choices=["lexical", "llm"], default=None,
+                         help="score predict-then-verify descriptor fidelity ('lexical' offline, 'llm' uses the model)")
+    p_build.add_argument("--min-fidelity", dest="min_fidelity", type=float, default=None,
+                         help="CI gate: exit non-zero if mean descriptor fidelity is below this (1-5)")
     p_build.add_argument("--max-repairs", dest="max_repairs", type=int, default=1)
     p_build.set_defaults(func=cmd_build)
 

@@ -9,6 +9,7 @@ from ..tokenizer import Tokenizer, heuristic_tokenizer
 from .cost import annotate
 from .descriptors import DescriptorModel, cache_from_manifest, generate_descriptors
 from .emit import build_manifest, to_llms_txt
+from .fidelity import FidelityModel, score_fidelity
 from .ir import SourceTree
 
 
@@ -33,6 +34,7 @@ def compile_source(
     grade_threshold: float = 0.7,
     max_repairs: int = 1,
     max_workers: int = 1,
+    fidelity_model: FidelityModel | None = None,
     prior_manifest: dict | None = None,
     generated_at: str | None = None,
 ) -> BuildResult:
@@ -74,4 +76,6 @@ def compile_source(
         "collisions": gen_stats.get("collisions", {}),
         "max_sibling_similarity": gen_stats.get("collisions", {}).get("max_similarity", 0.0),
     }
+    if fidelity_model is not None:
+        stats["fidelity"] = score_fidelity(tree, descriptors, fidelity_model, max_workers=max_workers).to_dict()
     return BuildResult(source_id=tree.source_id, manifests=manifests, llms_txt=to_llms_txt(tree, descriptors), stats=stats)
