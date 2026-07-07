@@ -6,7 +6,7 @@ On-device models have tiny context windows (~4k today, ~32k near-term). Stuffing
 
 `askfaro-progressive-context` is the open-source compiler + format + runtime for that index. It is the **agent-navigated** half of Faro's context tooling (the model reads the index and decides what to expand); its sibling [`askfaro-embedded-search`](https://github.com/poolside-ventures/askfaro-embedded-search) is the retrieval-driven half. The two stay independent — this library has no hard dependency on it.
 
-> Status: **Phase 1 (pre-alpha).** The format, expansion runtime, eval harness, **and the compiler (`pcx build`)** are here and tested — adapters for `tools`/`docs`/`skills`/`memory`, the descriptor engine (bottom-up + contrastive + self-grade), cost annotation, and per-budget emit. Still to come: per-budget frontier shaping, `website`/`file` adapters with clustering (Phase 3), and the hosted Faro registry (Phase 5).
+> Status: **pre-alpha, but published** — `pip install askfaro-progressive-context` (v0.3.0 on PyPI). Shipped and tested: the format, the compiler (`pcx build`) with adapters for `tools`/`docs`/`skills`/`memory`, the descriptor engine (bottom-up + contrastive + self-grade), incremental rebuilds (descriptor reuse keyed on `content_hash`), the expansion runtime, the `NavSession` agent-loop API (`index`/`look`/`open`/`close`, `local`/`remote` modes), identity-revalidated manifest caching (`ManifestLoader` / `AsyncManifestLoader`), and the eval harness. Still to come: per-budget frontier shaping, `website`/`file` adapters with clustering, and the hosted Faro registry.
 
 ## The idea in one screen
 
@@ -18,22 +18,30 @@ A **progressive-context manifest** (`pcx.json`) is a tree of nodes. Every node c
 
 Variants are **pre-generated per budget** (`pcx.4k.json`, `pcx.32k.json`, …); budgets are arbitrary integers, so a developer who needs headroom for their own content can build a `31k` variant — or reserve it at runtime.
 
-## What's here (Phase 0)
+## What's here (v0.3.0)
 
 | Module | What it does |
 |---|---|
 | `schema/pcx-0.1.schema.json` | the format, as JSON Schema |
-| `askfaro_progressive_context.types` | `Manifest` / `Node` / `Payload` dataclasses |
+| `askfaro_progressive_context.types` | `Manifest` / `Node` / `Payload` / `Variant` dataclasses |
 | `askfaro_progressive_context.validate` | structural (zero-dep) + JSON Schema validation |
+| `askfaro_progressive_context.build` (`pcx build`) | the compiler: `tools`/`docs`/`skills`/`memory` adapters, the descriptor engine (bottom-up + contrastive + self-grade), cost annotation, incremental rebuilds, per-budget emit + `llms.txt` |
 | `askfaro_progressive_context.runtime` | the expansion protocol: `peek` / `expand` / `collapse` / `search`, with **hard budget enforcement** and a runtime `reserve` |
+| `askfaro_progressive_context.session` | `NavSession` — the agent-loop API (`index`/`look`/`open`/`close`) with `local`/`remote` modes |
 | `askfaro_progressive_context.navigator` | `KeywordNavigator` (deterministic baseline, no model) and `LLMNavigator` (bring your own `complete()`) |
-| `askfaro_progressive_context.loader` | `ManifestLoader` + `MemoryStore` / `FileStore` — transport-agnostic, identity-revalidated manifest caching |
+| `askfaro_progressive_context.loader` | `ManifestLoader` / `AsyncManifestLoader` + `MemoryStore` / `FileStore` — transport-agnostic, identity-revalidated manifest caching |
 | `askfaro_progressive_context.eval` | the **`navigation-success @ budget`** harness — the headline quality metric |
 
 ## Quick start
 
 ```bash
-pip install -e ".[dev,schema]"
+pip install askfaro-progressive-context          # runtime + CLI
+pip install "askfaro-progressive-context[llm]"   # + the LLM descriptor engine for `pcx build`
+```
+
+```bash
+# build manifest variants from a source tree (use --fake for an offline/CI build)
+pcx build ./skills --kind skills --budgets 4k,32k --endpoint $ENDPOINT --model $MODEL
 
 # validate a manifest
 pcx validate examples/skills/manifest.pcx.4k.json --schema
@@ -41,6 +49,9 @@ pcx validate examples/skills/manifest.pcx.4k.json --schema
 # score navigation-success @ budget with the deterministic baseline navigator
 pcx eval examples/skills/manifest.pcx.4k.json examples/skills/cases.json -v
 ```
+
+> Working from a clone? Install editable with the dev + schema extras instead:
+> `pip install -e ".[dev,schema]"`.
 
 ```python
 from askfaro_progressive_context import Manifest, Runtime
