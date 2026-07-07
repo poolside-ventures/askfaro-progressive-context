@@ -38,6 +38,8 @@ def compile_source(
     max_workers: int = 1,
     fidelity_model: FidelityModel | None = None,
     cross_links: bool = False,
+    cross_link_vectors: dict[str, list[float]] | None = None,
+    cross_link_min_sim: float = 0.35,
     prior_manifest: dict | None = None,
     generated_at: str | None = None,
 ) -> BuildResult:
@@ -59,7 +61,11 @@ def compile_source(
         cache=cache,
         _stats=gen_stats,
     )
-    links_added = infer_cross_links(tree, descriptors) if cross_links else 0
+    links_added = (
+        infer_cross_links(tree, descriptors, min_sim=cross_link_min_sim, vectors=cross_link_vectors)
+        if cross_links
+        else 0
+    )
 
     costs = annotate(tree.root, descriptors, tokenizer)
 

@@ -80,3 +80,21 @@ def test_reconcile_detects_staleness(manifest):
     assert any("dangling" in w or "no longer exist" in w for w in warns)
     # all good
     assert rt.reconcile(current_identity=manifest.identity) == []
+
+
+def test_cross_links_use_cosine_when_vectors_given():
+    # Two cross-branch nodes with NO shared tokens (lexical sim = 0) but near-identical
+    # vectors: only the embedding path links them.
+    from askfaro_progressive_context.build.descriptors import generate_descriptors
+    a = SourceNode(id="ba", title="alpha", children=[SourceNode(id="x", title="alpha", content="zzz")])
+    b = SourceNode(id="bb", title="beta", children=[SourceNode(id="y", title="beta", content="qqq")])
+    tree = SourceTree(source_id="t", kind="docs", root=SourceNode(id="r", title="root", children=[a, b]))
+    descriptors = generate_descriptors(tree, FakeDescriptorModel())
+    vectors = {"x": [1.0, 0.0, 0.0], "y": [0.98, 0.20, 0.0]}  # cosine ~0.98
+
+    assert infer_cross_links(tree, descriptors, min_sim=0.9) == 0          # lexical: no shared tokens
+    for n in tree.root.walk():
+        n.links = []
+    added = infer_cross_links(tree, descriptors, min_sim=0.9, vectors=vectors)  # cosine: linked
+    assert added >= 1
+    assert any(l["to"] == "y" for l in next(n for n in tree.root.walk() if n.id == "x").links)

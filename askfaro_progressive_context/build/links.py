@@ -39,13 +39,28 @@ def infer_cross_links(
     *,
     k: int = 3,
     min_sim: float = 0.35,
+    vectors: dict[str, list[float]] | None = None,
 ) -> int:
     """Add up to `k` see-also links per node to the most-similar nodes in OTHER
     tier-1 branches (similarity >= min_sim). Mutates `SourceNode.links`. Returns
-    the number of links added. Symmetric pairs are both linked."""
+    the number of links added. Symmetric pairs are both linked.
+
+    Similarity is **cosine over `vectors`** when a per-node embedding map is
+    supplied, else **lexical Jaccard** over descriptor tokens. Embeddings capture
+    semantic relatedness the lexical measure can't — and, importantly, the
+    contrastive pass drives sibling *tokens* apart, so lexical cross-branch
+    similarity is near-zero on good descriptors; a caller that wants real links
+    should pass `vectors`. Tune `min_sim` to the measure (Jaccard ~0.3, cosine
+    ~0.6-0.8). A node missing a vector falls back to lexical for its own row.
+    """
     tier1 = _tier1_of(tree)
     nodes = [n for n in tree.root.walk() if n.id != tree.root.id and n.id in descriptors]
     tokens = {n.id: descriptor_tokens(descriptors[n.id]) for n in nodes}
+
+    def sim(a: str, b: str) -> float:
+        if vectors is not None and a in vectors and b in vectors:
+            return _cosine(vectors[a], vectors[b])
+        return _jaccard(tokens[a], tokens[b])
 
     added = 0
     for node in nodes:
@@ -53,7 +68,7 @@ def infer_cross_links(
         for other in nodes:
             if other.id == node.id or tier1.get(other.id) == tier1.get(node.id):
                 continue  # skip self and same-branch (that's the tree's job)
-            s = _jaccard(tokens[node.id], tokens[other.id])
+            s = sim(node.id, other.id)
             if s >= min_sim:
                 shared = tokens[node.id] & tokens[other.id]
                 scored.append((s, other.id, shared))
@@ -66,6 +81,15 @@ def infer_cross_links(
             node.links.append({"to": oid, "why": why})
             added += 1
     return added
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = sum(x * x for x in a) ** 0.5
+    nb = sum(y * y for y in b) ** 0.5
+    return dot / (na * nb) if na and nb else 0.0
 
 
 def betweenness(tree: SourceTree) -> dict[str, float]:

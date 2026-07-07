@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.5.0 - embedding-based cross-link inference (2026-07-07)
+
+- **`infer_cross_links(..., vectors=...)`** — cross-link inference can now use
+  **cosine similarity over per-node embeddings** instead of only lexical Jaccard.
+  This matters because the contrastive pass deliberately drives sibling *tokens*
+  apart, so lexical cross-branch similarity is near-zero on good descriptors —
+  the lexical measure finds almost no links on a real corpus. Pass a
+  `{node_id: vector}` map (embeddings of each descriptor) to get semantically
+  related see-also links. Tune `min_sim` to the measure (Jaccard ~0.3, cosine
+  ~0.6-0.8). `compile_source` gains `cross_link_vectors=` / `cross_link_min_sim=`.
+  Lexical remains the zero-dependency default when no vectors are supplied.
+
 ## 0.4.0 - measurable descriptor quality + pcx format v0.2 (2026-07-07)
 
 Descriptor quality is now *measured and enforced*, not asserted — and the format

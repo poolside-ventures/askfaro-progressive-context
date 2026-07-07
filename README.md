@@ -116,7 +116,11 @@ s.filter(kind="template")            # facet-first precision: ids matching every
   them with `pcx build --cross-links`, which infers see-also links from
   cross-branch descriptor similarity and stamps a why-phrase; `build.links.betweenness`
   then flags the bridge nodes those links create (the descriptors most worth
-  getting right).
+  getting right). By default similarity is lexical, but the contrastive pass
+  drives sibling tokens apart — so on good descriptors lexical finds almost
+  nothing. Pass `compile_source(cross_link_vectors={node_id: embedding})` (with a
+  cosine-tuned `cross_link_min_sim`) to infer links from *semantic* similarity
+  instead; that's what makes cross-links actually useful on a real corpus.
 - **Facets** (`node.facets`, `Runtime.find_by_facets`) are orthogonal dimensions.
   Filtering on two independent 5-value facets cuts the space ~25× *before* any
   descriptor ranking — multiplicative precision for cheap.
