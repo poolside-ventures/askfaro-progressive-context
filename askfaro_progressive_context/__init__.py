@@ -34,7 +34,7 @@ from .tokenizer import make_tokenizer
 from .types import PROTOCOL_USAGE, Link, Manifest, Node, Payload, Variant, estimate_tokens
 from .validate import schema_errors, structural_errors, validate
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "AsyncFetcher",

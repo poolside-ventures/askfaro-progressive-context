@@ -2,6 +2,44 @@
 
 ## Unreleased
 
+## 0.4.0 - measurable descriptor quality + pcx format v0.2 (2026-07-07)
+
+Descriptor quality is now *measured and enforced*, not asserted — and the format
+gained the lateral navigation a pure tree can't express.
+
+- **Contrastive convergence loop + collision gate.** The contrastive sibling
+  pass iterates against a lexical distinctiveness measure until the worst sibling
+  pair drops below `--collision-threshold` (bounded by `--max-contrast-rounds`),
+  and — when a level exceeds the chunk size — splits it by *similarity* so
+  near-duplicates are contrasted together (fixes the cross-chunk gap). Build
+  surfaces `max_sibling_similarity`; `--max-collision` is a CI gate. Also fixed a
+  latent bug: the root's children were being contrasted twice every build.
+- **Predict-then-verify fidelity eval.** `build/fidelity.py` scores each
+  descriptor on whether it predicts its node's content (`LexicalFidelityModel`
+  offline, `LLMFidelityModel` real). `pcx build --fidelity [lexical|llm]` +
+  `--min-fidelity` gate.
+- **Dual-channel grading.** A deterministic paraphrase/vacuity detector
+  (`distinct.vacuity_flags`) forces a repair for descriptors that read well but
+  are un-searchable; the LLM grade now scores navigation *and* retrieval channels.
+- **Branch synthesis.** `LLMDescriptorModel(synthesis=True)` / `--synthesis`
+  writes branch descriptors from descendant *content* (tensions, where-to-start),
+  not assembled child descriptors.
+- **NavSession leaf context envelope.** Opening a leaf prepends its ancestor
+  descriptor chain (`Runtime.ancestors`), so atomic content isn't read stripped
+  of where it sits. Mode-configurable (`ModeConfig.leaf_context`).
+- **Tree-shape lints + regime-awareness.** Report-only warnings for over-wide
+  levels, over-deep/small-corpus trees, and does-too-much branch `what`; opt-in
+  `--flatten` collapses single-child branches.
+- **Memory namespaces + presets.** The memory adapter separates
+  knowledge/operational/agent-self memory into namespaces; `--preset` fills a
+  coherent config with a justification chain.
+- **pcx format v0.2 (breaking, no back-compat).** Nodes carry `links` (see-also
+  cross-links with a why-phrase) and `facets` (orthogonal dimensions).
+  `--cross-links` infers links from cross-branch descriptor similarity;
+  `build/links.betweenness` flags bridge nodes. Runtime gains `related()`
+  (explore), `find_by_facets()` (facet-first precision), and `reconcile()`
+  (staleness/dangling-route detection). Schema is now `schema/pcx-0.2.schema.json`.
+
 ## 0.3.0 - manifest caching (`ManifestLoader`) (2026-06-18)
 
 - **New: a transport-agnostic, revalidate-don't-expire manifest cache.** A
