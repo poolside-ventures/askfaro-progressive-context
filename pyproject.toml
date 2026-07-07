@@ -41,7 +41,7 @@ build-backend = "hatchling.build"
 packages = ["askfaro_progressive_context"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"schema/pcx-0.1.schema.json" = "askfaro_progressive_context/schema/pcx-0.1.schema.json"
+"schema/pcx-0.2.schema.json" = "askfaro_progressive_context/schema/pcx-0.2.schema.json"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
