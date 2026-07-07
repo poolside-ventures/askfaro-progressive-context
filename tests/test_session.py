@@ -22,7 +22,29 @@ def test_open_branch_then_leaf(manifest):
     s = NavSession(manifest, mode="local", resolver=dict_resolver({"posts.draft": "DRAFT GUIDE"}))
     entries = s.open("posts")
     assert any(e.node_id == "posts.draft" for e in entries)
-    assert s.open("posts.draft") == "DRAFT GUIDE"
+    # leaf content is spliced, now wrapped in an ancestor context envelope (default on)
+    out = s.open("posts.draft")
+    assert "DRAFT GUIDE" in out
+    assert "[context]" in out and "Posts" in out  # breadcrumb of the parent branch
+
+
+def test_leaf_context_can_be_disabled(manifest):
+    cfg = ModeConfig(view_level="brief", inline_small_leaves=False, leaf_context=False)
+    s = NavSession(manifest, config=cfg, resolver=dict_resolver({"posts.draft": "DRAFT GUIDE"}))
+    s.open("posts")
+    assert s.open("posts.draft") == "DRAFT GUIDE"  # bare content, no envelope
+
+
+def test_leaf_context_envelope_not_recharged(manifest):
+    s = NavSession(manifest, mode="local", resolver=dict_resolver({"posts.draft": "DRAFT GUIDE"}))
+    s.open("posts")
+    before = s.shown_tokens
+    s.open("posts.draft")
+    after_first = s.shown_tokens
+    # opening again is idempotent and the envelope adds no extra charge
+    s.open("posts.draft")
+    assert s.shown_tokens == after_first
+    assert after_first > before  # the leaf splice itself was charged
 
 
 def test_look_escalates_to_full_and_charges(manifest):

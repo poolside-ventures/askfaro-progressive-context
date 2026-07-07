@@ -34,6 +34,7 @@ class ModeConfig:
     view_level: str  # frontier view shown by index()
     inline_small_leaves: bool  # inline leaf content into index() to save round-trips
     inline_max_tokens: int = 200  # only inline leaves at/under this size
+    leaf_context: bool = True  # prepend the ancestor descriptor chain when a leaf opens
 
 
 LOCAL = ModeConfig(view_level="brief", inline_small_leaves=False)
@@ -87,8 +88,27 @@ class NavSession:
 
     def open(self, node_id: str):
         """Drill into a branch (returns child frontier entries) or splice a
-        leaf's verbatim content (returns the content/ref)."""
-        return self.rt.expand(node_id)
+        leaf's verbatim content (returns the content/ref). For a leaf, the
+        ancestor descriptor chain is prepended as a context envelope so the
+        atomic content isn't read stripped of where it sits (mode-configurable)."""
+        result = self.rt.expand(node_id)
+        if self.cfg.leaf_context and isinstance(result, str) and self.rt.m.get(node_id).is_leaf:
+            envelope = self._context_envelope(node_id)
+            if envelope:
+                return f"{envelope}\n\n{result}"
+        return result
+
+    def _context_envelope(self, node_id: str) -> str:
+        """Breadcrumb of ancestor `what` lines — the meaning an isolated leaf
+        loses. Not re-charged: these descriptors were already seen on the way
+        down (the runtime charged them as the frontier was revealed)."""
+        chain = self.rt.ancestors(node_id)
+        if not chain:
+            return ""
+        crumbs = " › ".join((n.title or n.id) for n in chain)
+        lines = [f"[context] {crumbs}"]
+        lines += [f"  - {(n.title or n.id)}: {n.what}" for n in chain]
+        return "\n".join(lines)
 
     def close(self, node_id: str) -> int:
         return self.rt.collapse(node_id)

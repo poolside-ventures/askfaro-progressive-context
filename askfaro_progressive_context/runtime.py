@@ -113,6 +113,7 @@ class Runtime:
         self.search_backend = search_backend
         self.resolver = resolver
         self.view_level = view_level
+        self._parents: dict[str, str] | None = None  # lazy child_id -> parent_id map
 
         # Visible frontier: nodes whose descriptor the agent can act on.
         self._frontier: dict[str, Node] = {}
@@ -260,6 +261,27 @@ class Runtime:
             expanded=(node_id in self._revealed or node_id in self._spliced),
             meta=node.meta,
         )
+
+    def ancestors(self, node_id: str) -> list[Node]:
+        """The chain of ancestor nodes from root down to `node_id`'s parent
+        (empty for a tier-1 node). Used to restore the context an atomic leaf
+        loses when it is read in isolation."""
+        if self._parents is None:
+            parents: dict[str, str] = {}
+            stack = [self.m.root]
+            while stack:
+                n = stack.pop()
+                for c in self.m.children_of(n):
+                    parents[c.id] = n.id
+                    stack.append(c)
+            self._parents = parents
+        chain: list[Node] = []
+        cur = self._parents.get(node_id)
+        while cur is not None:
+            chain.append(self.m.get(cur))
+            cur = self._parents.get(cur)
+        chain.reverse()  # root ... immediate parent
+        return chain
 
     def collapse(self, node_id: str) -> int:
         """Drop a spliced leaf; returns tokens reclaimed."""
