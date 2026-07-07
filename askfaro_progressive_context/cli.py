@@ -80,6 +80,20 @@ def cmd_build(args: argparse.Namespace) -> int:
     from .llm import OpenAICompatibleClient
     from .tokenizer import make_tokenizer
 
+    if args.preset:
+        from .build.presets import apply_preset
+
+        preset_defaults = {
+            "budgets": "4k,32k", "synthesis": False, "flatten": False,
+            "fidelity": None, "collision_threshold": 0.5, "max_collision": None,
+        }
+        try:
+            notes = apply_preset(args.preset, args, preset_defaults)
+        except KeyError as exc:
+            print(str(exc).strip('"'), file=sys.stderr)
+            return 2
+        print(f"preset {args.preset!r}: " + "; ".join(notes) if notes else f"preset {args.preset!r} (all overridden)")
+
     budgets = _parse_budgets(args.budgets)
     if not budgets:
         print("no budgets given", file=sys.stderr)
@@ -202,6 +216,8 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("path", help="source file (tools) or directory (docs/skills/memory)")
     p_build.add_argument("--kind", required=True, choices=["tools", "docs", "skills", "memory"])
     p_build.add_argument("--budgets", default="4k,32k", help="comma-separated, e.g. 4k,32k,31000")
+    p_build.add_argument("--preset", default=None,
+                         help="named config preset (docs-heavy | tool-routing | low-budget); explicit flags override it")
     p_build.add_argument("--out", default="dist", help="output directory")
     p_build.add_argument("--source-id", dest="source_id", default=None)
     p_build.add_argument("--fake", action="store_true", help="use the deterministic offline model (no API)")
