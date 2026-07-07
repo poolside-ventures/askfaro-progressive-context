@@ -121,3 +121,26 @@ def test_build_surfaces_max_sibling_similarity():
     result = compile_source(_colliding_tree(), FakeDescriptorModel(), [4096])
     assert "max_sibling_similarity" in result.stats
     assert isinstance(result.stats["max_sibling_similarity"], float)
+
+
+def test_vacuity_flags_paraphrase_and_filler():
+    from askfaro_progressive_context.build.distinct import vacuity_flags
+
+    # `what` just echoes the title, `when` is generic filler
+    bad = vacuity_flags("export csv", _d("export csv", "various general purposes"))
+    assert any("restates the title" in f for f in bad)
+    assert any("non-specific" in f or "no distinctive" in f for f in bad)
+
+    # a grounded, discriminating descriptor is clean
+    good = vacuity_flags("export csv", _d("stream ledger rows to a spreadsheet", "download monthly accounting data"))
+    assert good == []
+
+
+def test_vacuity_reported_in_stats():
+    from askfaro_progressive_context.build.ir import SourceNode, SourceTree
+
+    kids = [SourceNode(id="k1", title="thing", content="x"), SourceNode(id="k2", title="widget", content="y")]
+    tree = SourceTree(source_id="t", kind="docs", root=SourceNode(id="root", title="root", children=kids))
+    stats: dict = {}
+    generate_descriptors(tree, FakeDescriptorModel(), _stats=stats)
+    assert "vacuity" in stats and "count" in stats["vacuity"]

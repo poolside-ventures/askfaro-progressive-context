@@ -23,7 +23,13 @@ import re
 from dataclasses import dataclass, field
 
 from ..llm import LLMClient, parse_json_object
-from .distinct import cluster_by_similarity, descriptor_tokens, max_pairwise, sibling_collision_report
+from .distinct import (
+    cluster_by_similarity,
+    descriptor_tokens,
+    max_pairwise,
+    sibling_collision_report,
+    vacuity_flags,
+)
 from .ir import SourceNode, SourceTree, content_hashes
 
 _MAX_CONTENT_CHARS = 6000
@@ -182,12 +188,16 @@ def generate_descriptors(
         siblings = [descriptors[c.id] for c in parent_of[node.id].children if c.id != node.id]
         for _ in range(max_repairs):
             grade = model.grade(node, desc, siblings)
-            if grade.score >= grade_threshold:
+            # Deterministic retrieval-channel check the model grade misses: a
+            # vacuous/paraphrase descriptor forces a repair even if it reads well.
+            flags = vacuity_flags(node.title, desc)
+            if grade.score >= grade_threshold and not flags:
                 break
+            reason = "; ".join(filter(None, [grade.reason, *flags]))
             if node.is_leaf:
-                desc = model.describe_leaf(node, feedback=grade.reason)
+                desc = model.describe_leaf(node, feedback=reason)
             else:
-                desc = model.describe_branch(node, [descriptors[c.id] for c in node.children], feedback=grade.reason)
+                desc = model.describe_branch(node, [descriptors[c.id] for c in node.children], feedback=reason)
         return node.id, desc
 
     targets = [n for n in tree.root.walk() if n.id != tree.root.id and (not incremental or n.id in fresh)]
@@ -203,6 +213,12 @@ def generate_descriptors(
             if len(n.children) >= 2
         ]
         _stats["collisions"] = sibling_collision_report(sibling_groups, collision_threshold)
+        vacuous = {
+            n.id: flags
+            for n in tree.root.walk()
+            if n.id != tree.root.id and (flags := vacuity_flags(n.title, descriptors[n.id]))
+        }
+        _stats["vacuity"] = {"flagged": sorted(vacuous), "count": len(vacuous)}
     return descriptors
 
 
@@ -334,7 +350,11 @@ class LLMDescriptorModel(DescriptorModel):
             f"Grade this navigation entry for an agent choosing among siblings.\n"
             f"Entry what: {descriptor.what}\nEntry when: {descriptor.when}\n"
             f"Sibling 'when' lines:\n{others}\n\n"
-            f"Score 0-1 on: concreteness, and how well 'when' discriminates from siblings. "
+            f"Score 0-1 on TWO channels, and report the lower: (1) navigation — how well "
+            f"'when' discriminates this from its siblings for an agent reading the index; "
+            f"(2) retrieval — whether 'when'/'what' carry distinctive, searchable keywords "
+            f"rather than generic connective prose (a descriptor that reads well but is all "
+            f"filler words is un-searchable). "
             'Return {"score": <float>, "reason": <string>}.'
         )
         try:

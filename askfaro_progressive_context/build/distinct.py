@@ -110,6 +110,41 @@ def cluster_by_similarity(items: list, tokens: list[set[str]], max_size: int) ->
     return list(groups.values())
 
 
+# --- vacuity / paraphrase detection (the retrieval channel) ----------------
+
+# Non-falsifiable filler: a `when` built from these predicts nothing about content.
+_VACUOUS = {
+    "various", "general", "generic", "miscellaneous", "misc", "stuff", "things",
+    "everything", "anything", "several", "related", "etc",
+}
+
+
+def vacuity_flags(title: str | None, d: Descriptor) -> list[str]:
+    """Deterministic descriptor-quality flags for the retrieval channel.
+
+    A descriptor is a *filter*, not a summary: it must add discriminating,
+    searchable terms over the title. These catch the two failures the LLM grade
+    misses because they read fine as prose:
+
+    - **paraphrase** — `what` just restates the title, adding no new term. A
+      descriptor that echoes the title is zero filtering information.
+    - **vacuous `when`** — `when` carries no content term beyond connective
+      filler, so it can't discriminate this node from any other in search.
+    """
+    flags: list[str] = []
+    title_toks = tokenize(title or "")
+    what_toks = tokenize(d.what)
+    if title_toks and title_toks <= what_toks and len(what_toks - title_toks) <= 1:
+        flags.append("`what` restates the title without adding a distinguishing term")
+
+    when_toks = tokenize(d.when)
+    if len(when_toks) < 2:
+        flags.append("`when` has no distinctive searchable terms (mostly filler)")
+    elif when_toks & _VACUOUS and len(when_toks - _VACUOUS) < 2:
+        flags.append("`when` is non-specific (generic filler words)")
+    return flags
+
+
 def sibling_collision_report(sibling_groups: list[list[Descriptor]], threshold: float = 0.5) -> dict:
     """Summarize collisions across every sibling group.
 
