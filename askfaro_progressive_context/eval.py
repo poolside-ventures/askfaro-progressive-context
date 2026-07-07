@@ -28,6 +28,10 @@ class NavCase:
     query: str
     target: str  # the correct leaf node id
     note: str | None = None
+    # The facet(s) an agent could filter on before scanning for this query (e.g.
+    # {"category": "Finance & Markets"}). Only consulted when run with
+    # use_facets=True; lets the harness score facet-first navigation vs cold scan.
+    facet: dict[str, str] | None = None
 
 
 @dataclass
@@ -96,10 +100,51 @@ def _tier1_ancestor(manifest: Manifest, parent: dict[str, str], node_id: str) ->
     return cur if parent.get(cur) == root_id else None
 
 
-def run_case(manifest: Manifest, navigator: Navigator, case: NavCase, *, reserve: int = 0, max_hops: int = 8) -> CaseResult:
-    rt = Runtime(manifest, reserve=reserve)
+def _facet_scope(rt: Runtime, manifest: Manifest, facet: dict[str, str]) -> set[str]:
+    """Surface the facet-matched nodes directly on the frontier — the harness model
+    of `/pcx/filter` (or `NavSession.filter`): the agent names a facet and gets the
+    matching descriptors to rank, skipping the tree descent. Reveals the branches
+    that contain the matches (so they enter the frontier), then returns the set the
+    frontier is restricted to (the matches + root). Returns an empty set when the
+    facet matches nothing, leaving navigation unrestricted."""
+    matched = set(rt.find_by_facets(**facet))
+    if not matched:
+        return set()
+    for mid in matched:
+        for anc in rt.ancestors(mid):
+            if anc.id != manifest.root.id and not anc.is_leaf and anc.id not in rt._revealed:
+                try:
+                    rt.expand(anc.id)
+                except BudgetExceeded:
+                    break
+    return matched | {manifest.root.id}
+
+
+def run_case(
+    manifest: Manifest,
+    navigator: Navigator,
+    case: NavCase,
+    *,
+    reserve: int = 0,
+    budget: int | None = None,
+    max_hops: int = 8,
+    use_facets: bool = False,
+    use_related: bool = False,
+) -> CaseResult:
+    """Navigate to `case.target`. `use_facets` pre-narrows the frontier to the
+    case's facet (filter-first precision); `use_related` lets a run that lands
+    close follow a see-also link to the target (lateral rescue). Both default off
+    so the baseline is a pure tree walk — the delta between configs is the value
+    the cross-links/facets add. `budget` overrides the manifest variant's budget
+    (e.g. to isolate navigation quality from a tight window)."""
+    rt = Runtime(manifest, budget=budget, reserve=reserve)
     parent = _parent_map(manifest)
     target_branch = _tier1_ancestor(manifest, parent, case.target)
+
+    allowed = None
+    if use_facets and case.facet:
+        scope = _facet_scope(rt, manifest, case.facet)
+        allowed = scope or None  # empty facet match ⇒ no restriction
 
     path: list[str] = []
     first_hop_correct = False
@@ -107,6 +152,8 @@ def run_case(manifest: Manifest, navigator: Navigator, case: NavCase, *, reserve
 
     for hop in range(max_hops):
         frontier = rt.peek()
+        if allowed is not None:
+            frontier = [e for e in frontier if e.node_id in allowed]
         choice = navigator.choose(case.query, frontier, rt.budget_remaining)
         if choice is None:
             break
@@ -121,11 +168,38 @@ def run_case(manifest: Manifest, navigator: Navigator, case: NavCase, *, reserve
         if choice == case.target:
             return CaseResult(case.query, case.target, True, len(path), first_hop_correct, False, rt.spent, path)
 
+    # Lateral rescue: we didn't reach the target by drilling, but a node we opened
+    # may have a see-also link straight to it — the "close but not exact" case.
+    if use_related and not budget_exhausted:
+        for nid in list(path):
+            if any(e.node_id == case.target for e in rt.related(nid)):
+                try:
+                    rt.expand(case.target)
+                except BudgetExceeded:
+                    budget_exhausted = True
+                    break
+                path.append(case.target)
+                return CaseResult(case.query, case.target, True, len(path), first_hop_correct, False, rt.spent, path)
+
     return CaseResult(case.query, case.target, False, len(path), first_hop_correct, budget_exhausted, rt.spent, path)
 
 
-def run_eval(manifest: Manifest, navigator: Navigator, cases: list[NavCase], *, reserve: int = 0, max_hops: int = 8) -> EvalReport:
-    results = [run_case(manifest, navigator, c, reserve=reserve, max_hops=max_hops) for c in cases]
+def run_eval(
+    manifest: Manifest,
+    navigator: Navigator,
+    cases: list[NavCase],
+    *,
+    reserve: int = 0,
+    budget: int | None = None,
+    max_hops: int = 8,
+    use_facets: bool = False,
+    use_related: bool = False,
+) -> EvalReport:
+    results = [
+        run_case(manifest, navigator, c, reserve=reserve, budget=budget, max_hops=max_hops,
+                 use_facets=use_facets, use_related=use_related)
+        for c in cases
+    ]
     n = len(results)
     successes = [r for r in results if r.success]
     return EvalReport(

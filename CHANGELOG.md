@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 0.5.1 - see-also why-phrase generation + facet-first eval hooks (2026-07-07)
+
+Additive, backward-compatible — makes the pcx v0.2 cross-links/facets usable, not
+just present.
+
+- **`infer_cross_links(..., why_fn=...)` / `compile_source(..., cross_link_why_fn=...)`.**
+  The embedding pass picks *which* cross-branch edge to draw, but the reason is
+  semantic — lexical token overlap can't name it (the contrastive pass drove the
+  branches' salient tokens apart), so the old `why` label read "shares need". A
+  builder can now supply a `why_fn(src_desc, dst_desc, shared) -> str` (e.g. a
+  model) to state the actual relation; it is called once per directed edge and
+  must not raise (failures fall back). Optional — omitting it keeps the
+  deterministic label, now de-noised (generic descriptor filler is dropped, and a
+  no-overlap edge says "related capability in another area" instead of naming
+  stopwords).
+- **`PROTOCOL_USAGE` is now directive.** The self-describing usage block tells a
+  navigator to *filter by facet before scanning* and to *follow see-also links
+  when a result is close-but-not-exact*, instead of only mentioning that `links`
+  and `facets` exist. This is what actually drives an agent to use them.
+- **Eval harness scores facets/links.** `NavCase` gains an optional `facet`;
+  `run_case`/`run_eval` gain `use_facets=` (pre-narrow the frontier to the case's
+  facet — filter-first precision) and `use_related=` (let a run that lands close
+  follow a see-also link to the target — lateral rescue). Off by default, so the
+  delta between configs quantifies what cross-links/facets add.
+
 ## 0.5.0 - embedding-based cross-link inference (2026-07-07)
 
 - **`infer_cross_links(..., vectors=...)`** — cross-link inference can now use

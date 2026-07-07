@@ -14,9 +14,36 @@ the same lexical measure the contrastive pass minimizes for siblings — here we
 
 from __future__ import annotations
 
+from typing import Callable
+
 from .descriptors import Descriptor
 from .distinct import descriptor_tokens, _jaccard
 from .ir import SourceNode, SourceTree
+
+# A why-phrase generator: given the source + target descriptors and their shared
+# discriminating tokens, return a short human phrase explaining the relation.
+WhyFn = Callable[[Descriptor, Descriptor, list[str]], str]
+
+# Generic verbs/nouns that the descriptor style ("routes the request to the right
+# approach", "finds/generates/edits ...") sprinkles across unrelated capabilities.
+# They make a lexical why-phrase ("shares request, right, routing") say nothing, so
+# the deterministic fallback drops them before naming the overlap.
+_WHY_FILLER = {
+    "request", "requests", "right", "routing", "route", "approach", "need", "needs",
+    "find", "finds", "get", "gets", "provide", "provides", "return", "returns",
+    "use", "used", "using", "data", "content", "information", "result", "results",
+    "not", "also", "via", "into", "from", "with", "for", "the", "and",
+}
+
+
+def _fallback_why(shared: list[str]) -> str:
+    """A deterministic why-phrase when no model is available. Names the shared
+    salient terms with the generic descriptor filler removed; if nothing salient
+    survives, says only that it's a related capability (honest, not noise)."""
+    salient = [t for t in shared if t not in _WHY_FILLER][:3]
+    if salient:
+        return "related: both involve " + ", ".join(salient)
+    return "related capability in another area"
 
 
 def _tier1_of(tree: SourceTree) -> dict[str, str]:
@@ -40,6 +67,7 @@ def infer_cross_links(
     k: int = 3,
     min_sim: float = 0.35,
     vectors: dict[str, list[float]] | None = None,
+    why_fn: WhyFn | None = None,
 ) -> int:
     """Add up to `k` see-also links per node to the most-similar nodes in OTHER
     tier-1 branches (similarity >= min_sim). Mutates `SourceNode.links`. Returns
@@ -52,7 +80,13 @@ def infer_cross_links(
     similarity is near-zero on good descriptors; a caller that wants real links
     should pass `vectors`. Tune `min_sim` to the measure (Jaccard ~0.3, cosine
     ~0.6-0.8). A node missing a vector falls back to lexical for its own row.
-    """
+
+    The see-also `why` phrase names the relation. When `why_fn` is given it
+    produces the phrase from the two descriptors (e.g. a model that can state the
+    *semantic* reason the embedding drew the edge — which lexical overlap can't,
+    since edges span branches whose salient tokens were driven apart). Without it,
+    a deterministic fallback names the shared salient terms. `why_fn` is called
+    once per directed edge and must not raise; any failure falls back."""
     tier1 = _tier1_of(tree)
     nodes = [n for n in tree.root.walk() if n.id != tree.root.id and n.id in descriptors]
     tokens = {n.id: descriptor_tokens(descriptors[n.id]) for n in nodes}
@@ -77,7 +111,15 @@ def infer_cross_links(
         for _s, oid, shared in scored[:k]:
             if oid in existing:
                 continue
-            why = "related: shares " + ", ".join(sorted(shared)[:3]) if shared else "related"
+            shared_terms = sorted(shared)
+            why = _fallback_why(shared_terms)
+            if why_fn is not None:
+                try:
+                    generated = why_fn(descriptors[node.id], descriptors[oid], shared_terms)
+                except Exception:
+                    generated = ""
+                if generated and generated.strip():
+                    why = generated.strip()
             node.links.append({"to": oid, "why": why})
             added += 1
     return added

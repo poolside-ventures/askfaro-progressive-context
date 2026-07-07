@@ -12,7 +12,7 @@ from .emit import build_manifest, to_llms_txt
 from .fidelity import FidelityModel, score_fidelity
 from .ir import SourceTree
 from .lint import tree_shape_warnings
-from .links import betweenness, infer_cross_links
+from .links import WhyFn, betweenness, infer_cross_links
 
 
 @dataclass
@@ -40,6 +40,7 @@ def compile_source(
     cross_links: bool = False,
     cross_link_vectors: dict[str, list[float]] | None = None,
     cross_link_min_sim: float = 0.35,
+    cross_link_why_fn: WhyFn | None = None,
     prior_manifest: dict | None = None,
     generated_at: str | None = None,
 ) -> BuildResult:
@@ -62,7 +63,10 @@ def compile_source(
         _stats=gen_stats,
     )
     links_added = (
-        infer_cross_links(tree, descriptors, min_sim=cross_link_min_sim, vectors=cross_link_vectors)
+        infer_cross_links(
+            tree, descriptors, min_sim=cross_link_min_sim,
+            vectors=cross_link_vectors, why_fn=cross_link_why_fn,
+        )
         if cross_links
         else 0
     )
