@@ -56,6 +56,30 @@ def hash_content(text: str) -> str:
     return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def flatten_single_child_branches(root: SourceNode) -> SourceNode:
+    """Collapse branches that have exactly one child: a single-child branch is a
+    navigation hop with nothing to discriminate. The child is lifted into the
+    grandparent in place. The root is never removed (even with one child).
+
+    Regime-awareness helper: keeps small trees from carrying pointless depth.
+    """
+
+    def rebuild(node: SourceNode) -> SourceNode:
+        if node.is_leaf:
+            return node
+        new_children = []
+        for child in node.children:
+            child = rebuild(child)
+            # lift a single-child branch's own child up in its place
+            while child.is_branch and len(child.children) == 1:
+                child = child.children[0]
+            new_children.append(child)
+        node.children = new_children
+        return node
+
+    return rebuild(root)
+
+
 def content_hashes(root: SourceNode) -> dict[str, str]:
     """Per-node content hash (leaf = hash of content; branch = hash of child
     hashes). A node's hash captures its whole subtree, so any descendant change

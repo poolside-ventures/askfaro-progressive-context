@@ -95,6 +95,11 @@ def cmd_build(args: argparse.Namespace) -> int:
         print(str(exc).strip('"'), file=sys.stderr)
         return 2
 
+    if args.flatten:
+        from .build.ir import flatten_single_child_branches
+
+        flatten_single_child_branches(tree.root)
+
     client = None
     if args.fake:
         model = FakeDescriptorModel()
@@ -161,6 +166,8 @@ def cmd_build(args: argparse.Namespace) -> int:
               f" ({len(fidelity['flagged'])} node(s) flagged < 3)")
     for w in written:
         print(f"  wrote {w}")
+    for warning in s.get("warnings", []):
+        print(f"  warn: {warning}", file=sys.stderr)
 
     if args.max_collision is not None and max_sim > args.max_collision:
         print(f"FAIL: worst sibling similarity {max_sim:.3f} exceeds --max-collision "
@@ -205,6 +212,8 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("--no-contrastive", dest="no_contrastive", action="store_true")
     p_build.add_argument("--synthesis", action="store_true",
                          help="synthesize branch descriptors from descendant content (tensions, where-to-start); needs a real model")
+    p_build.add_argument("--flatten", action="store_true",
+                         help="collapse single-child branches (pointless navigation hops) before compiling")
     p_build.add_argument("--collision-threshold", dest="collision_threshold", type=float, default=0.5,
                          help="sibling similarity at/above which the contrastive pass keeps rewriting (0-1)")
     p_build.add_argument("--max-contrast-rounds", dest="max_contrast_rounds", type=int, default=2,

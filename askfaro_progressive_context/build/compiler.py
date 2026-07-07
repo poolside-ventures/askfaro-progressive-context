@@ -11,6 +11,7 @@ from .descriptors import DescriptorModel, cache_from_manifest, generate_descript
 from .emit import build_manifest, to_llms_txt
 from .fidelity import FidelityModel, score_fidelity
 from .ir import SourceTree
+from .lint import tree_shape_warnings
 
 
 @dataclass
@@ -76,6 +77,7 @@ def compile_source(
         "collisions": gen_stats.get("collisions", {}),
         "max_sibling_similarity": gen_stats.get("collisions", {}).get("max_similarity", 0.0),
     }
+    stats["warnings"] = tree_shape_warnings(tree, descriptors)
     if fidelity_model is not None:
         stats["fidelity"] = score_fidelity(tree, descriptors, fidelity_model, max_workers=max_workers).to_dict()
     return BuildResult(source_id=tree.source_id, manifests=manifests, llms_txt=to_llms_txt(tree, descriptors), stats=stats)
