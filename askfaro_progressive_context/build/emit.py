@@ -29,6 +29,10 @@ def _node_dict(node: SourceNode, depth: int, d: Descriptor, c: Cost) -> dict[str
     }
     if d.keywords:
         out["keywords"] = d.keywords
+    if node.links:
+        out["links"] = [dict(link) for link in node.links]
+    if node.facets:
+        out["facets"] = dict(node.facets)
     if node.is_branch:
         out["children"] = [child.id for child in node.children]
     else:
@@ -69,7 +73,7 @@ def build_manifest(
         source["generated_at"] = generated_at
 
     return {
-        "pcx_version": "0.1",
+        "pcx_version": "0.2",
         "usage": PROTOCOL_USAGE,
         "source": source,
         "variant": {

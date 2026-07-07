@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://faro.dev/schema/pcx-0.1.schema.json",
-  "title": "Progressive-context manifest (pcx) v0.1",
-  "description": "A tiered, budget-aware, agent-navigable progressive-disclosure manifest. One file per budget variant; all variants of a source point at the same verbatim leaf store.",
+  "$id": "https://faro.dev/schema/pcx-0.2.schema.json",
+  "title": "Progressive-context manifest (pcx) v0.2",
+  "description": "A tiered, budget-aware, agent-navigable progressive-disclosure manifest. One file per budget variant; all variants of a source point at the same verbatim leaf store. v0.2 adds lateral cross-links (see-also) and orthogonal facets.",
   "type": "object",
   "required": ["pcx_version", "source", "variant", "root", "nodes"],
   "additionalProperties": false,
   "properties": {
-    "pcx_version": { "const": "0.1" },
+    "pcx_version": { "const": "0.2" },
     "usage": {
       "type": "string",
       "description": "Self-description of the navigation protocol, so a cold agent that has never seen the format knows how to use the manifest. Shipped at the top of every manifest."
@@ -97,7 +97,25 @@
           "items": { "type": "string" },
           "description": "Child node ids (branch). Mutually exclusive with payload."
         },
-        "payload": { "$ref": "#/$defs/payload" }
+        "payload": { "$ref": "#/$defs/payload" },
+        "links": {
+          "type": "array",
+          "description": "Lateral see-also cross-links to related nodes in OTHER branches — the contextual navigation a pure tree can't express. Each carries a why-phrase.",
+          "items": {
+            "type": "object",
+            "required": ["to"],
+            "additionalProperties": false,
+            "properties": {
+              "to": { "type": "string", "description": "Target node id (should resolve within this manifest)." },
+              "why": { "type": "string", "description": "One line: why these relate (the reason to follow the link)." }
+            }
+          }
+        },
+        "facets": {
+          "type": "object",
+          "description": "Orthogonal classification dimensions (e.g. type, role, status). Filter on facets BEFORE ranking descriptors — multiplicative precision. Keys/values are short strings.",
+          "additionalProperties": { "type": "string" }
+        }
       },
       "oneOf": [
         { "required": ["children"], "not": { "required": ["payload"] } },

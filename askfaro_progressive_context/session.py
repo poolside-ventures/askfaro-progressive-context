@@ -110,6 +110,17 @@ class NavSession:
         lines += [f"  - {(n.title or n.id)}: {n.what}" for n in chain]
         return "\n".join(lines)
 
+    def related(self, node_id: str):
+        """Explore: the node's see-also cross-links (with why-phrases), as
+        frontier entries. Nothing is opened — this is the lateral counterpart to
+        drilling the tree with open()."""
+        return self.rt.related(node_id)
+
+    def filter(self, **facets: str):
+        """Facet-first precision: node ids matching every facet key=value, to
+        narrow the space before reading descriptors."""
+        return self.rt.find_by_facets(**facets)
+
     def close(self, node_id: str) -> int:
         return self.rt.collapse(node_id)
 

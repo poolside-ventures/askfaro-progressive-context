@@ -283,6 +283,64 @@ class Runtime:
         chain.reverse()  # root ... immediate parent
         return chain
 
+    def related(self, node_id: str) -> list[FrontierEntry]:
+        """The see-also cross-links of a node, as frontier entries (the *explore*
+        move: follow lateral relations across branches, vs *precision* which
+        stays on the tree). Descriptors only — nothing is opened or charged."""
+        node = self.m.get(node_id)
+        out: list[FrontierEntry] = []
+        for link in node.links:
+            try:
+                entry = self.peek_one(link.to)
+            except KeyError:
+                continue
+            entry.meta = {**entry.meta, "link_why": link.why}
+            out.append(entry)
+        return out
+
+    def reconcile(self, current_identity: str | None = None, live_ids: set[str] | None = None) -> list[str]:
+        """Check the manifest against live state and return staleness warnings.
+
+        An agent trusts a curated map completely, so a stale one is worse than
+        none — it misroutes silently. This surfaces the drift instead:
+
+        - `current_identity` — the origin's current content hash; if it differs
+          from `manifest.identity`, the map is stale (content moved).
+        - `live_ids` — the set of ids that still exist at the source; any leaf
+          the manifest points at that is missing is a dangling route.
+
+        Returns a (possibly empty) list of human-readable warnings; the caller
+        decides whether to refetch. This is read-only detection, never a write.
+        """
+        warnings: list[str] = []
+        mine = self.m.identity
+        if current_identity is not None and mine is not None and current_identity != mine:
+            warnings.append(
+                f"manifest is stale: identity {mine!r} != origin {current_identity!r}; refetch before trusting routes"
+            )
+        if live_ids is not None:
+            missing = [nid for nid in [self.m.root.id, *self.m.nodes] if nid not in live_ids]
+            if missing:
+                warnings.append(
+                    f"{len(missing)} node(s) no longer exist at the source (dangling routes): "
+                    f"{', '.join(sorted(missing)[:5])}"
+                )
+        return warnings
+
+    def find_by_facets(self, **facets: str) -> list[str]:
+        """Node ids whose facets match every given key=value pair. Facet-first
+        filtering is multiplicative precision — cut the space by orthogonal
+        dimensions before ranking descriptors. Empty query matches nothing."""
+        if not facets:
+            return []
+        q = {str(k): str(v) for k, v in facets.items()}
+        ids: list[str] = []
+        for nid in [self.m.root.id, *self.m.nodes]:
+            node = self.m.get(nid)
+            if all(node.facets.get(k) == v for k, v in q.items()):
+                ids.append(nid)
+        return ids
+
     def collapse(self, node_id: str) -> int:
         """Drop a spliced leaf; returns tokens reclaimed."""
         entry = self._spliced.pop(node_id, None)

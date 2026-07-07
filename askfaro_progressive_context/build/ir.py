@@ -22,6 +22,10 @@ class SourceNode:
     hint: str | None = None
     keywords: list[str] = field(default_factory=list)
     children: list["SourceNode"] = field(default_factory=list)
+    # pcx v0.2: lateral see-also links [{"to","why"}] and orthogonal facets.
+    # Adapters may set facets; cross-links are inferred at compile time.
+    links: list[dict] = field(default_factory=list)
+    facets: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_branch(self) -> bool:

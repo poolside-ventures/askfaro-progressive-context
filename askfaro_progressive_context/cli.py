@@ -151,6 +151,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         max_contrast_rounds=args.max_contrast_rounds,
         max_repairs=args.max_repairs,
         fidelity_model=fidelity_model,
+        cross_links=args.cross_links,
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
 
@@ -230,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
                          help="synthesize branch descriptors from descendant content (tensions, where-to-start); needs a real model")
     p_build.add_argument("--flatten", action="store_true",
                          help="collapse single-child branches (pointless navigation hops) before compiling")
+    p_build.add_argument("--cross-links", dest="cross_links", action="store_true",
+                         help="infer lateral see-also links between related nodes in different branches (pcx v0.2)")
     p_build.add_argument("--collision-threshold", dest="collision_threshold", type=float, default=0.5,
                          help="sibling similarity at/above which the contrastive pass keeps rewriting (0-1)")
     p_build.add_argument("--max-contrast-rounds", dest="max_contrast_rounds", type=int, default=2,

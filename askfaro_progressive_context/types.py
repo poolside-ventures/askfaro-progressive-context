@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-PCX_VERSION = "0.1"
+PCX_VERSION = "0.2"
 
 # Self-description shipped at the top of every manifest so a cold agent that has
 # never seen the format knows how to navigate it. This is part of the standard.
@@ -53,6 +53,21 @@ class Payload:
 
 
 @dataclass
+class Link:
+    """A lateral see-also edge to a related node in another branch."""
+
+    to: str
+    why: str = ""
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Link":
+        return cls(to=d["to"], why=d.get("why", ""))
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"to": self.to, "why": self.why} if self.why else {"to": self.to}
+
+
+@dataclass
 class Node:
     """One unit of content. Branch (children) XOR leaf (payload)."""
 
@@ -62,6 +77,9 @@ class Node:
     tier: int = 0
     title: str | None = None
     keywords: list[str] = field(default_factory=list)
+    # Lateral cross-links (see-also) and orthogonal facets — pcx v0.2.
+    links: list[Link] = field(default_factory=list)
+    facets: dict[str, str] = field(default_factory=dict)
     # Cost to show this node's descriptor in a frontier (estimated if absent).
     desc_tokens: int | None = None
     # Cost to expand this node's direct full payload (leaf); 0 for branches.
@@ -100,6 +118,7 @@ class Node:
         {
             "id", "what", "when", "tier", "title", "keywords", "desc_tokens",
             "tokens", "summary_tokens", "subtree_tokens", "children", "payload",
+            "links", "facets",
         }
     )
 
@@ -113,6 +132,8 @@ class Node:
             tier=d.get("tier", 0),
             title=d.get("title"),
             keywords=list(d.get("keywords", [])),
+            links=[Link.from_dict(x) for x in d.get("links", [])],
+            facets={str(k): str(v) for k, v in (d.get("facets") or {}).items()},
             desc_tokens=d.get("desc_tokens"),
             tokens=d.get("tokens", 0),
             summary_tokens=d.get("summary_tokens"),

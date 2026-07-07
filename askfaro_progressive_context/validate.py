@@ -14,8 +14,8 @@ import json
 from pathlib import Path
 from typing import Any
 
-_SCHEMA_PATH = Path(__file__).parent / "schema" / "pcx-0.1.schema.json"
-_FALLBACK_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "pcx-0.1.schema.json"
+_SCHEMA_PATH = Path(__file__).parent / "schema" / "pcx-0.2.schema.json"
+_FALLBACK_SCHEMA_PATH = Path(__file__).parent.parent / "schema" / "pcx-0.2.schema.json"
 
 
 def schema_path() -> Path:
@@ -25,8 +25,8 @@ def schema_path() -> Path:
 def structural_errors(manifest: dict[str, Any]) -> list[str]:
     errors: list[str] = []
 
-    if manifest.get("pcx_version") != "0.1":
-        errors.append(f"pcx_version must be '0.1', got {manifest.get('pcx_version')!r}")
+    if manifest.get("pcx_version") != "0.2":
+        errors.append(f"pcx_version must be '0.2', got {manifest.get('pcx_version')!r}")
     if "variant" not in manifest or "budget" not in manifest.get("variant", {}):
         errors.append("variant.budget is required")
 
@@ -53,6 +53,15 @@ def structural_errors(manifest: dict[str, Any]) -> list[str]:
                 errors.append(f"node {nid!r}: child {cid!r} not found in nodes")
         if has_payload and "ref" not in (node.get("payload") or {}):
             errors.append(f"node {nid!r}: payload.ref is required")
+        for link in node.get("links", []) or []:
+            to = link.get("to") if isinstance(link, dict) else None
+            if not to:
+                errors.append(f"node {nid!r}: a link is missing 'to'")
+            elif to not in known:
+                errors.append(f"node {nid!r}: link target {to!r} not found in nodes")
+        facets = node.get("facets")
+        if facets is not None and not isinstance(facets, dict):
+            errors.append(f"node {nid!r}: facets must be an object of string:string")
 
     check_node(root_id, root)
     for nid, node in nodes.items():

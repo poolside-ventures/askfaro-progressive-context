@@ -31,7 +31,7 @@ from .runtime import (
 )
 from .session import LOCAL, REMOTE, ModeConfig, NavSession
 from .tokenizer import make_tokenizer
-from .types import PROTOCOL_USAGE, Manifest, Node, Payload, Variant, estimate_tokens
+from .types import PROTOCOL_USAGE, Link, Manifest, Node, Payload, Variant, estimate_tokens
 from .validate import schema_errors, structural_errors, validate
 
 __version__ = "0.3.0"
@@ -53,6 +53,7 @@ __all__ = [
     "LOCAL",
     "REMOTE",
     "LeafResolver",
+    "Link",
     "LoaderError",
     "Manifest",
     "ManifestKey",

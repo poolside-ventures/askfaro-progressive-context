@@ -1,5 +1,5 @@
 {
-  "pcx_version": "0.1",
+  "pcx_version": "0.2",
   "source": { "id": "assistant-skills", "kind": "skills", "generated_at": "2026-06-10T00:00:00Z", "content_hash": "sha256:demo" },
   "variant": { "budget": 4096, "manifest_tokens": 180, "siblings": [32768] },
   "full_tokens": 11440,
@@ -29,6 +29,7 @@
       "tokens": 1840,
       "subtree_tokens": 1840,
       "keywords": ["draft", "write", "compose", "new", "announcement"],
+      "facets": { "kind": "template", "verb": "create" },
       "payload": { "ref": "node://posts.draft", "format": "md", "render": ["full", "summary"] }
     },
     "posts.schedule": {
@@ -39,6 +40,10 @@
       "tokens": 1320,
       "subtree_tokens": 1320,
       "keywords": ["schedule", "timing", "publish", "later", "existing"],
+      "facets": { "kind": "template", "verb": "schedule" },
+      "links": [
+        { "to": "recurring.create", "why": "related: both set a schedule/cadence for future runs" }
+      ],
       "payload": { "ref": "node://posts.schedule", "format": "md", "render": ["full"] }
     },
     "recurring": {
