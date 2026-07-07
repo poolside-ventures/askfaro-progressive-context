@@ -15,6 +15,7 @@ A **progressive-context manifest** (`pcx.json`) is a tree of nodes. Every node c
 - a **descriptor** — `what` (one line: what this is) and `when` (one line: when it's relevant). These are the *navigation index*, and their quality is the whole game.
 - **token costs** — so the runtime can plan expansion against a budget *without fetching anything*.
 - either **children** (a branch) or a **payload pointer** (a leaf). Leaves are never inlined and always **verbatim** — no information is lost to a summary.
+- optionally (**v0.2**) **`links`** — see-also cross-links `{to, why}` to related nodes in *other* branches, the lateral navigation a pure tree can't express — and **`facets`** — orthogonal tags (type, status, …) you filter on to narrow before reading descriptors.
 
 Variants are **pre-generated per budget** (`pcx.4k.json`, `pcx.32k.json`, …); budgets are arbitrary integers, so a developer who needs headroom for their own content can build a `31k` variant — or reserve it at runtime.
 
@@ -96,6 +97,40 @@ If the index is enough, the model calls `open`; if it can't decide, it calls `lo
 
 Pass `config=ModeConfig(...)` for a custom policy; an unknown `mode` raises with the valid options.
 
+## Beyond the tree: cross-links, facets, freshness (v0.2)
+
+A pure tree gives you *global* (where am I) and *local* (this neighborhood)
+navigation, but not the *contextual* "this also relates to that over in another
+branch." pcx v0.2 adds three things for that, all optional and additive:
+
+```python
+s = NavSession(manifest, mode="local")
+
+s.related("posts.schedule")          # explore: see-also links (with why-phrases)
+                                     # to related nodes in OTHER branches
+s.filter(kind="template")            # facet-first precision: ids matching every
+                                     # facet key=value, before you read descriptors
+```
+
+- **Cross-links** (`node.links`, `Runtime.related`) are the lateral edges. Build
+  them with `pcx build --cross-links`, which infers see-also links from
+  cross-branch descriptor similarity and stamps a why-phrase; `build.links.betweenness`
+  then flags the bridge nodes those links create (the descriptors most worth
+  getting right).
+- **Facets** (`node.facets`, `Runtime.find_by_facets`) are orthogonal dimensions.
+  Filtering on two independent 5-value facets cuts the space ~25× *before* any
+  descriptor ranking — multiplicative precision for cheap.
+- **Reconciliation** (`Runtime.reconcile`) treats a stale manifest as the hazard
+  it is: an agent trusts a curated map completely, so a stale one misroutes
+  silently. Pass the origin's current identity and/or the set of live ids and it
+  returns staleness / dangling-route warnings instead of serving them blind.
+
+```python
+warnings = rt.reconcile(current_identity=origin_hash, live_ids=still_present)
+if warnings:            # refetch before trusting the routes
+    ...
+```
+
 ## Caching the manifest: `ManifestLoader`
 
 A manifest is small, identical for every reader, and changes only when its source content changes — an ideal cache target. But it is also a *routing index*, so a stale copy can point an agent at content that has moved or vanished. A plain time-to-live cache is therefore the wrong tool: the safe pattern is to cache on the manifest's **identity** and *revalidate* against it, never to expire blindly on a clock.
@@ -161,6 +196,16 @@ manifest = await loader.load(ManifestKey(source_id="my-catalog", budget="4k"))
 ## Why a benchmark, not vibes
 
 The moat is descriptor quality, so quality is measured, not asserted. The eval harness gives a navigator *only* the manifest and a budget plus `(query → correct leaf)` cases, and reports **navigation-success @ budget**, **first-hop precision**, and **average hops**. The deterministic `KeywordNavigator` establishes an offline floor; swap in an `LLMNavigator` to score a real model.
+
+### Enforced at build time, not just measured after
+
+The eval scores a finished manifest; the compiler also *gates* descriptor quality as it builds, so regressions fail fast:
+
+- **Distinctiveness.** The contrastive pass is a convergence loop over a lexical similarity measure: it rewrites colliding siblings until the worst pair drops below `--collision-threshold`, and — when a level is wider than one contrast call — groups siblings *by similarity* so near-duplicates are actually compared. `--max-collision` fails the build if any siblings stay too alike.
+- **Fidelity** (predict-then-verify). `--fidelity` scores whether each descriptor lets you predict its node's content (`lexical` offline, `llm` for real); `--min-fidelity` gates it. This catches descriptors that read well but don't anticipate the content.
+- **Vacuity/retrieval channel.** A descriptor that just restates the title, or whose `when` is all connective filler, reads fine but is un-searchable — a deterministic check forces a repair, and the LLM grade scores navigation *and* retrieval channels.
+- **Branch synthesis.** `--synthesis` writes branch descriptors from descendant *content* (what unifies the group, tensions, where to start) instead of assembling child descriptors.
+- **Shape lints.** Over-wide levels, over-deep/small-corpus trees, and does-too-much branch `what` surface as warnings; `--flatten` collapses single-child hops; `--preset` fills a coherent config with a justification per setting.
 
 ## Length is the point
 

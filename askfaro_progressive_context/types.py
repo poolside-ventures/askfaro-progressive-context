@@ -22,8 +22,11 @@ PROTOCOL_USAGE = (
     "(a branch) or a `payload` (a leaf). To find what you need: (1) scan the descriptors under `root.children`; "
     "(2) follow the node whose `when` best matches your goal; (3) for a branch, look up its child ids in "
     "`nodes` to go deeper; (4) for a leaf, fetch the full verbatim content by resolving `payload.ref` "
-    "(e.g. `node://<id>`) — a leaf's content is not in this file. Expand only what you need and stay within "
-    "`variant.budget` tokens. If your host exposes navigation tools (index / open / look), prefer those; "
+    "(e.g. `node://<id>`) — a leaf's content is not in this file. A node may also carry `links` "
+    "(see-also references `{to, why}` to related nodes in OTHER branches — follow them to explore "
+    "laterally) and `facets` (a map of orthogonal tags like type/status — filter on these to narrow "
+    "before reading descriptors). Expand only what you need and stay within `variant.budget` tokens. "
+    "If your host exposes navigation tools (index / open / look / related / filter), prefer those; "
     "otherwise resolve `node://` refs yourself."
 )
 
