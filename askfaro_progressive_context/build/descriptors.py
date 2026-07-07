@@ -269,11 +269,34 @@ class FakeDescriptorModel(DescriptorModel):
 # --- real model ------------------------------------------------------------
 
 
+def _descendant_content(node: SourceNode, max_chars: int) -> str:
+    """A bounded sample of the verbatim leaf content under a branch, round-robin
+    across children so a synthesis prompt sees every child, not just the first."""
+    per_child = max(200, max_chars // max(1, len(node.children)))
+    parts: list[str] = []
+    budget = max_chars
+    for child in node.children:
+        leaves = [n for n in child.walk() if n.is_leaf and n.content]
+        chunk = "\n".join((n.content or "")[:per_child] for n in leaves)[:per_child]
+        if chunk:
+            title = child.title or child.id
+            block = f"## {title}\n{chunk}"
+            parts.append(block[:budget])
+            budget -= len(parts[-1])
+        if budget <= 0:
+            break
+    return "\n\n".join(parts)
+
+
 class LLMDescriptorModel(DescriptorModel):
     _JSON = {"type": "json_object"}
 
-    def __init__(self, client: LLMClient):
+    def __init__(self, client: LLMClient, *, synthesis: bool = False, synthesis_max_chars: int = 4000):
         self.client = client
+        # When set, branch descriptors are synthesized from descendant *content*
+        # (tensions, where-to-start), not assembled from child descriptors.
+        self.synthesis = synthesis
+        self.synthesis_max_chars = synthesis_max_chars
 
     def _complete_json(self, prompt: str) -> dict:
         return parse_json_object(self.client.complete(prompt, system=self._SYS, response_format=self._JSON))
@@ -308,14 +331,25 @@ class LLMDescriptorModel(DescriptorModel):
         return self._call(prompt, fallback)
 
     def describe_branch(self, node: SourceNode, children: list[Descriptor], *, feedback: str | None = None) -> Descriptor:
+        title = node.title or node.id
+        fallback = Descriptor(what=(node.hint or title)[:80], when=f"Anything about {title}.", keywords=[])
+        if self.synthesis:
+            content = _descendant_content(node, self.synthesis_max_chars)
+            if content:
+                prompt = (
+                    f"Title: {node.title}\nThe content grouped under this node:\n{content}\n\n"
+                    f"{self._feedback_line(feedback)}"
+                    "Write a branch index entry that SYNTHESIZES this group, not a list: what "
+                    "unifies it, any tension/contrast between parts, and where an agent should "
+                    'start. Return {"what": str, "when": str, "keywords": [str, ...]}.'
+                )
+                return self._call(prompt, fallback)
         listing = "\n".join(f"- {c.what}" for c in children)
         prompt = (
             f"Title: {node.title}\nThis node groups these children:\n{listing}\n\n"
             f"{self._feedback_line(feedback)}"
             'Summarize the group. Return {"what": str, "when": str, "keywords": [str, ...]}.'
         )
-        title = node.title or node.id
-        fallback = Descriptor(what=(node.hint or title)[:80], when=f"Anything about {title}.", keywords=[])
         return self._call(prompt, fallback)
 
     def contrast(self, parent_title: str | None, siblings: list[tuple[SourceNode, Descriptor]]) -> list[Descriptor]:

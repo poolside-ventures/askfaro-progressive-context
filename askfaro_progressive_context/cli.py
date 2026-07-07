@@ -108,7 +108,9 @@ def cmd_build(args: argparse.Namespace) -> int:
                   f"--api-key-env, or pass --fake to build offline.", file=sys.stderr)
             return 2
         client = OpenAICompatibleClient(args.endpoint, api_key, args.model)
-        model = LLMDescriptorModel(client)
+        model = LLMDescriptorModel(client, synthesis=args.synthesis)
+    if args.synthesis and args.fake:
+        print("note: --synthesis needs a real model; the offline --fake model ignores it", file=sys.stderr)
 
     fidelity_model = None
     if args.fidelity == "llm":
@@ -201,6 +203,8 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("--api-key-env", dest="api_key_env", default="OPENAI_API_KEY")
     p_build.add_argument("--tokenizer", default=None, help="tiktoken encoding name (needs the 'tokenize' extra)")
     p_build.add_argument("--no-contrastive", dest="no_contrastive", action="store_true")
+    p_build.add_argument("--synthesis", action="store_true",
+                         help="synthesize branch descriptors from descendant content (tensions, where-to-start); needs a real model")
     p_build.add_argument("--collision-threshold", dest="collision_threshold", type=float, default=0.5,
                          help="sibling similarity at/above which the contrastive pass keeps rewriting (0-1)")
     p_build.add_argument("--max-contrast-rounds", dest="max_contrast_rounds", type=int, default=2,
