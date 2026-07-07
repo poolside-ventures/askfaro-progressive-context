@@ -23,6 +23,7 @@ import re
 from dataclasses import dataclass, field
 
 from ..llm import LLMClient, parse_json_object
+from .distinct import cluster_by_similarity, descriptor_tokens, max_pairwise, sibling_collision_report
 from .ir import SourceNode, SourceTree, content_hashes
 
 _MAX_CONTENT_CHARS = 6000
@@ -94,6 +95,8 @@ def generate_descriptors(
     *,
     contrastive: bool = True,
     contrast_chunk: int = 8,
+    collision_threshold: float = 0.5,
+    max_contrast_rounds: int = 2,
     grade_threshold: float = 0.7,
     max_repairs: int = 1,
     max_workers: int = 1,
@@ -133,21 +136,38 @@ def generate_descriptors(
 
     # 2. contrastive sibling pass — only for groups whose parent changed (a
     #    parent's hash rolls up its subtree, so an unchanged parent ⇒ unchanged
-    #    group, whose cached descriptors were already contrasted).
+    #    group, whose cached descriptors were already contrasted). When a level
+    #    has more children than one contrast call can hold, the group is split by
+    #    *similarity* (near-duplicates together), never by position — a node must
+    #    be contrasted against the siblings it actually collides with. Each group
+    #    is rewritten until its worst pair drops below `collision_threshold` or a
+    #    round makes no progress (bounded by `max_contrast_rounds`).
     if contrastive:
         jobs: list[tuple[str | None, list[SourceNode]]] = []
-        for branch in [tree.root, *tree.branches()]:
+        for branch in tree.branches():  # includes the root; do not prepend it (double-contrasts)
             if incremental and branch.id not in fresh:
                 continue
             sibs = branch.children
-            for i in range(0, len(sibs), contrast_chunk):
-                chunk = sibs[i : i + contrast_chunk]
+            if len(sibs) < 2:
+                continue
+            tokens = [descriptor_tokens(descriptors[c.id]) for c in sibs]
+            for chunk in cluster_by_similarity(sibs, tokens, contrast_chunk):
                 if len(chunk) >= 2:
                     jobs.append((branch.title, chunk))
 
         def _contrast(job):
             title, chunk = job
-            return chunk, model.contrast(title, [(c, descriptors[c.id]) for c in chunk])
+            current = [descriptors[c.id] for c in chunk]
+            # Round 1 always runs; extra rounds only while the group still
+            # collides and each round keeps improving (so a no-op model stops).
+            for _ in range(max(1, max_contrast_rounds)):
+                before = max_pairwise(current)
+                refined = model.contrast(title, list(zip(chunk, current)))
+                after = max_pairwise(refined)
+                current = refined
+                if after < collision_threshold or after >= before:
+                    break
+            return chunk, current
 
         for chunk, refined in _run(jobs, _contrast, max_workers):
             for child, rd in zip(chunk, refined):
@@ -177,6 +197,12 @@ def generate_descriptors(
     if _stats is not None:
         _stats["regenerated"] = len(fresh)
         _stats["reused"] = len(descriptors) - len(fresh)
+        sibling_groups = [
+            [descriptors[c.id] for c in n.children]
+            for n in tree.root.walk()
+            if len(n.children) >= 2
+        ]
+        _stats["collisions"] = sibling_collision_report(sibling_groups, collision_threshold)
     return descriptors
 
 

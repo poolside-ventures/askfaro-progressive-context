@@ -109,6 +109,8 @@ def cmd_build(args: argparse.Namespace) -> int:
         [n for _, n in budgets],
         tokenizer=make_tokenizer(args.tokenizer),
         contrastive=not args.no_contrastive,
+        collision_threshold=args.collision_threshold,
+        max_contrast_rounds=args.max_contrast_rounds,
         max_repairs=args.max_repairs,
         generated_at=datetime.now(timezone.utc).isoformat(),
     )
@@ -129,8 +131,17 @@ def cmd_build(args: argparse.Namespace) -> int:
           f"{s['branches']} branches")
     print(f"  manifest baseline: {s['manifest_tokens']} tok   full expansion: {s['full_tokens']} tok")
     print(f"  variants: {', '.join(label for label, _ in budgets)}")
+    max_sim = s.get("max_sibling_similarity", 0.0)
+    colliding = s.get("collisions", {}).get("colliding_groups", 0)
+    print(f"  descriptor distinctiveness: worst sibling similarity {max_sim:.3f}"
+          f" ({colliding} group(s) ≥ {args.collision_threshold})")
     for w in written:
         print(f"  wrote {w}")
+
+    if args.max_collision is not None and max_sim > args.max_collision:
+        print(f"FAIL: worst sibling similarity {max_sim:.3f} exceeds --max-collision "
+              f"{args.max_collision:.3f}. Colliding descriptors are not discriminating.", file=sys.stderr)
+        return 3
     return 0
 
 
@@ -164,6 +175,12 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("--api-key-env", dest="api_key_env", default="OPENAI_API_KEY")
     p_build.add_argument("--tokenizer", default=None, help="tiktoken encoding name (needs the 'tokenize' extra)")
     p_build.add_argument("--no-contrastive", dest="no_contrastive", action="store_true")
+    p_build.add_argument("--collision-threshold", dest="collision_threshold", type=float, default=0.5,
+                         help="sibling similarity at/above which the contrastive pass keeps rewriting (0-1)")
+    p_build.add_argument("--max-contrast-rounds", dest="max_contrast_rounds", type=int, default=2,
+                         help="max contrastive rewrite rounds per sibling group")
+    p_build.add_argument("--max-collision", dest="max_collision", type=float, default=None,
+                         help="CI gate: exit non-zero if the worst sibling similarity exceeds this (0-1)")
     p_build.add_argument("--max-repairs", dest="max_repairs", type=int, default=1)
     p_build.set_defaults(func=cmd_build)
 
